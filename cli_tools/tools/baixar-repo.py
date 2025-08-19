@@ -361,14 +361,6 @@ RESPOSTA (apenas números):"""
         except Exception as e:
             self.ui.mostrar_erro(f"Erro ao clonar: {e}")
             return False
-                return True
-            else:
-                self.ui.mostrar_erro(f"Erro no git clone: {resultado.stderr}")
-                return False
-                
-        except Exception as e:
-            self.ui.mostrar_erro(f"Erro ao clonar: {e}")
-            return False
     
     def _baixar_via_zip(self, repo: str, dir_destino: Path) -> bool:
         """Baixar repositório via ZIP (fallback)"""
