@@ -530,9 +530,10 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
 @click.option('--explain', type=click.Choice(['silencioso', 'basico', 'detalhado', 'debug']), help='Nível de explicação da IA')
 @click.option('--dry-run', is_flag=True, help='Mostrar o que seria feito sem executar')
 @click.option('--interactive', '-i', is_flag=True, help='Modo interativo')
+@click.option('--no-ai', is_flag=True, help='Baixar repositório completo sem IA')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interactive, output_json):
+def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interactive, no_ai, output_json):
     """📦 Baixar repositório com seleção IA"""
     
     # Usar query da flag se não foi passada como argumento
@@ -555,14 +556,26 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
     # Sanitizar output usando sistema de diretórios
     output_path = sanitizar_caminho(output, 'repos')
     
+    # Determinar modo de operação
+    if no_ai:
+        # Modo sem IA - sempre clone completo
+        modo = "clone"
+    elif query:
+        # Modo com IA - seleção inteligente
+        modo = "smart"
+    else:
+        # Modo padrão - clone completo
+        modo = "clone"
+    
     cmd = [
         sys.executable,
         str(Path(__file__).parent / "tools" / "baixar-repo.py"),
-        "smart" if query else "clone",
+        modo,
         repositorio
     ]
     
-    if query:
+    # Adicionar query apenas se não for --no-ai
+    if query and not no_ai:
         cmd.append(query)
     
     if ctx.obj['quiet']:
@@ -571,7 +584,7 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
     if output_path:
         cmd.extend(["--output", output_path])
     
-    if explain:
+    if explain and not no_ai:
         cmd.extend(["--explain", explain])
     
     if dry_run:
