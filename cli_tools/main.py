@@ -273,10 +273,6 @@ def ai_config(ctx, interactive, show, explain):
     
     # Mostrar help se nenhuma opção foi passada
     click.echo(ctx.get_help())
-    
-    if not arquivo_env.exists():
-        print("⚠️  Arquivo .env não encontrado!")
-        print("💡 Copie .env.example para .env e configure suas chaves")
 
 @cli.command()
 @click.pass_context
