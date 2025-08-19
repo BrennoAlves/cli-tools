@@ -159,6 +159,16 @@ class FerramentaBuscaImagens:
     
     def _baixar_imagem_unica(self, url: str, nome_arquivo: str, dir_saida: str = None) -> str:
         """Baixar uma única imagem"""
+        # Validar URL
+        if not url.startswith(('https://images.pexels.com/', 'https://www.pexels.com/')):
+            self.log(f"URL não autorizada: {url}", "ERROR")
+            return None
+        
+        # Sanitizar nome do arquivo
+        nome_arquivo = "".join(c for c in nome_arquivo if c.isalnum() or c in '._-')
+        if not nome_arquivo or len(nome_arquivo) < 3:
+            nome_arquivo = f"imagem_{hash(url) % 10000}.jpg"
+        
         if dir_saida:
             caminho_saida = Path(dir_saida)
         else:
@@ -175,6 +185,17 @@ class FerramentaBuscaImagens:
         try:
             response = requests.get(url, timeout=ConfigAPI.DOWNLOAD_TIMEOUT)
             response.raise_for_status()
+            
+            # Verificar tipo de conteúdo
+            content_type = response.headers.get('content-type', '')
+            if not content_type.startswith('image/'):
+                self.log(f"Conteúdo não é imagem: {content_type}", "ERROR")
+                return None
+            
+            # Verificar tamanho (máximo 50MB)
+            if len(response.content) > 50 * 1024 * 1024:
+                self.log("Imagem muito grande (>50MB)", "ERROR")
+                return None
             
             with open(caminho_arquivo, "wb") as f:
                 f.write(response.content)
