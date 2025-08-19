@@ -313,14 +313,27 @@ RESPOSTA (apenas números):"""
         if not self.silencioso:
             self.ui.mostrar_cabecalho("Clone de Repositório", f"Repo: {repo}")
         
+        # Extrair nome do repositório (parte após a barra)
+        nome_repo = repo.split("/")[-1]
+        
         # Definir diretório de saída
         if output_dir:
-            dir_destino = Path(output_dir)
+            # Criar pasta individual para o repo dentro do output_dir
+            dir_base = Path(output_dir)
+            dir_base.mkdir(parents=True, exist_ok=True)
+            dir_destino = dir_base / nome_repo
         else:
+            # Usar estrutura padrão com pasta individual
             categoria_dir = categoria or "geral"
-            dir_destino = self.dir_referencias / categoria_dir / repo.replace("/", "_")
+            dir_destino = self.dir_referencias / categoria_dir / nome_repo
         
-        dir_destino.mkdir(parents=True, exist_ok=True)
+        # Verificar se diretório já existe e está vazio
+        if dir_destino.exists() and any(dir_destino.iterdir()):
+            self.ui.mostrar_erro(f"Diretório {dir_destino} já existe e não está vazio")
+            return False
+        
+        # Criar diretório pai se não existir
+        dir_destino.parent.mkdir(parents=True, exist_ok=True)
         
         # Verificar se git está disponível
         if not shutil.which("git"):
@@ -338,6 +351,16 @@ RESPOSTA (apenas números):"""
             if resultado.returncode == 0:
                 self._registrar_repo(repo, str(dir_destino), categoria, "clone")
                 self.log(f"Repositório clonado: {repo} -> {dir_destino}")
+                if not self.silencioso:
+                    self.ui.mostrar_sucesso(f"Repositório clonado em: {dir_destino}")
+                return True
+            else:
+                self.ui.mostrar_erro(f"Erro no git clone: {resultado.stderr}")
+                return False
+                
+        except Exception as e:
+            self.ui.mostrar_erro(f"Erro ao clonar: {e}")
+            return False
                 return True
             else:
                 self.ui.mostrar_erro(f"Erro no git clone: {resultado.stderr}")
@@ -359,18 +382,24 @@ RESPOSTA (apenas números):"""
             
             response.raise_for_status()
             
+            # Criar diretório de destino se não existir
+            dir_destino.mkdir(parents=True, exist_ok=True)
+            
             # Extrair ZIP
             with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
                 zip_file.extractall(dir_destino.parent)
                 
-                # Renomear pasta extraída
+                # Renomear pasta extraída para o nome correto
+                nome_repo = repo.split("/")[1]
                 for item in dir_destino.parent.iterdir():
-                    if item.is_dir() and repo.split("/")[1] in item.name:
+                    if item.is_dir() and nome_repo in item.name and item != dir_destino:
                         if dir_destino.exists():
                             shutil.rmtree(dir_destino)
                         item.rename(dir_destino)
                         break
             
+            if not self.silencioso:
+                self.ui.mostrar_sucesso(f"Repositório baixado via ZIP em: {dir_destino}")
             return True
             
         except Exception as e:
