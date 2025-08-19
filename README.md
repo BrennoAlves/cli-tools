@@ -1,39 +1,94 @@
-# 🛠️ CLI Tools
+# 🛠️ CLI Tools v2.0
 
-Kit de ferramentas para desenvolvedores com IA integrada.
+Kit de ferramentas para desenvolvedores com IA integrada e interface moderna.
 
-## ⚡ Instalação (Comando Único)
+![CLI Tools](https://img.shields.io/badge/CLI%20Tools-v2.0-purple?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+## ⚡ Instalação Rápida
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/BrennoAlves/cli-tools/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/cli-tools/cli-tools/main/install.sh | bash
 ```
 
-## 🚀 Uso
+## 🎯 Funcionalidades
 
+### 🔍 **Busca de Imagens**
 ```bash
-# Status do sistema
-cli-tools status
-
-# Buscar imagens
 cli-tools search "escritório moderno" -n 5
+```
+- Busca no Pexels com IA
+- Download automático
+- Organização inteligente
 
-# Extrair designs do Figma  
-cli-tools figma "abc123def" -n 3 --format png
+### 🎨 **Extração Figma**
+```bash
+cli-tools figma abc123def --format png
+```
+- Extrai designs e assets
+- Múltiplos formatos (PNG, SVG, JPG)
+- Metadados preservados
 
-# Baixar repositório com IA
-cli-tools repo "tailwindcss/tailwindcss" -q "componentes"
+### 📦 **Download de Repositórios**
+```bash
+cli-tools repo tailwindcss/tailwindcss -q "componentes"
+```
+- Seleção inteligente com IA
+- Filtros personalizados
+- Análise de relevância
 
-# Configurar workspace
-cli-tools config --workspace ./materials
+### 🖥️ **Interface Interativa**
+```bash
+cli-tools ui
+```
+- Menu com navegação por setas
+- Cores vibrantes (tema Dracula)
+- Feedback visual em tempo real
+
+## 📊 Status e Monitoramento
+
+```bash
+cli-tools status              # Status geral
+cli-tools status --dashboard  # Dashboard visual
+cli-tools usage              # Uso das APIs
 ```
 
-## 📁 Workspace Inteligente
+## ⚙️ Configuração
 
-O CLI Tools cria automaticamente um workspace organizado:
+### 🔑 **APIs Necessárias**
+
+Crie um arquivo `.env` na raiz:
+
+```bash
+# Pexels (gratuito: 200 req/hora)
+PEXELS_API_KEY=sua_chave_aqui
+
+# Figma (gratuito: sem limite)
+FIGMA_API_TOKEN=seu_token_aqui
+
+# Google Gemini (gratuito: 15 req/min)
+GEMINI_API_KEY=sua_chave_aqui
+```
+
+### 🌐 **Obter Chaves**
+
+- **Pexels**: https://www.pexels.com/api/
+- **Figma**: https://www.figma.com/developers/api
+- **Gemini**: https://makersuite.google.com/app/apikey
+
+### 🔧 **Configuração Interativa**
+
+```bash
+cli-tools config --interactive
+```
+
+## 📁 Workspace Automático
+
+O CLI Tools organiza automaticamente seus arquivos:
 
 ```
 materials/
-├── README.md          # Documentação automática
 ├── imagens/          # Imagens do Pexels
 ├── figma/            # Designs do Figma
 └── repos/            # Repositórios clonados
@@ -43,41 +98,84 @@ materials/
 - **Fora de projetos**: `~/materials`
 - **Configurável**: `cli-tools config --workspace /caminho`
 
-## 🔑 APIs Necessárias
+## 🎮 Interface Interativa
 
-- **Pexels**: https://www.pexels.com/api/ (200 req/hora gratuito)
-- **Figma**: https://www.figma.com/developers/api (gratuito)  
-- **Gemini**: https://makersuite.google.com/app/apikey (15 req/min gratuito)
+A interface menu oferece navegação intuitiva:
 
-## 📋 Comandos
+- **↑↓**: Navegar opções
+- **Enter**: Selecionar
+- **Q/Esc**: Sair
+- **R**: Atualizar
 
-| Comando | Descrição |
-|---------|-----------|
-| `search` | Buscar e baixar imagens |
-| `figma` | Extrair designs do Figma |
-| `repo` | Baixar repositório com IA |
-| `status` | Status do sistema |
-| `config` | Configurar APIs e diretórios |
+### Funcionalidades:
+- 🔍 Busca de imagens com filtros
+- 🎨 Extração de designs Figma
+- 📦 Download inteligente de repos
+- 📊 Dashboard de status em tempo real
+- ⚙️ Configuração visual de APIs
+- 🛠️ Ferramentas auxiliares
 
-## 🎯 Exemplos
+## 🚀 Exemplos de Uso
 
+### **Workflow Completo**
 ```bash
-# Busca com orientação
-cli-tools search "logo startup" --orientation landscape -n 3
+# 1. Configurar APIs
+cli-tools config --interactive
 
-# Repo apenas CSS
-cli-tools repo "facebook/react" -q "apenas CSS" --dry-run
+# 2. Verificar status
+cli-tools status
 
-# Figma em SVG
-cli-tools figma "design-key" -n 5 --format svg
+# 3. Buscar recursos
+cli-tools search "interface moderna" -n 10
+cli-tools figma design-key-123 --format svg
+cli-tools repo microsoft/vscode -q "themes"
 
-# Configurar workspace personalizado
-cli-tools config --workspace /meu/projeto/assets
-
-# Saída JSON para pipelines
-cli-tools search "interface" --json | jq '.urls[]'
+# 4. Interface visual
+cli-tools ui
 ```
 
----
+### **Automação**
+```bash
+# Script para baixar assets de projeto
+#!/bin/bash
+cli-tools search "logo startup" -n 3 --orientation square
+cli-tools figma $FIGMA_KEY --format png
+cli-tools repo tailwindcss/tailwindcss -q "components"
+```
 
-**v1.1.0** - Workspace inteligente para desenvolvedores modernos
+### **Integração com Pipelines**
+```bash
+# Output JSON para processamento
+cli-tools search "background" --json | jq '.urls[]'
+cli-tools status --json | jq '.apis.pexels.status'
+```
+
+## 🏗️ Arquitetura
+
+```
+cli-tools/
+├── src/                    # Código fonte
+│   ├── main.py            # Entry point
+│   ├── menu_app/          # Interface TUI
+│   ├── core/              # APIs e lógica
+│   └── tools/             # Utilitários
+├── materials/             # Workspace
+├── .amazonq/docs/         # Documentação dev
+└── install.sh             # Instalação
+```
+
+## 🔧 Desenvolvimento
+
+### **Instalação Local**
+```bash
+git clone https://github.com/cli-tools/cli-tools.git
+cd cli-tools
+pip install -r requirements.txt
+python -m src.main --help
+```
+
+### **Estrutura do Código**
+- **`src/main.py`**: CLI principal e detecção de modo
+- **`src/menu_app/`**: Interface TUI com Textual
+- **`src/core/`**: Integrações de API e lógica de negócio
+- **`src/tools/`**: Utilitários e ferramentas auxiliares

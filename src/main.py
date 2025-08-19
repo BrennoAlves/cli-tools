@@ -316,23 +316,21 @@ def ui(ctx, demo):
     """
     
     try:
-        from textual_app.main_app import CLIToolsApp
+        from menu_app.interactive_menu import InteractiveMenu
         
         if demo:
             # Modo demo - simular dados
             import os
             os.environ['CLI_TOOLS_DEMO_MODE'] = '1'
         
-        app = CLIToolsApp()
+        app = InteractiveMenu()
         app.run()
         
     except ImportError as e:
-        ui = InterfaceLimpa(ctx.obj['quiet'])
-        ui.mostrar_erro(f"Erro ao importar Textual: {str(e)}")
-        ui.mostrar_info("Instale as dependências: pip install textual")
+        print(f"❌ Erro ao importar interface: {e}")
+        print("💡 Instale as dependências: pip install textual rich")
     except Exception as e:
-        ui = InterfaceLimpa(ctx.obj['quiet'])
-        ui.mostrar_erro(f"Erro na interface Textual: {str(e)}")
+        print(f"❌ Erro na interface: {e}")
 
 @cli.command()
 @click.pass_context

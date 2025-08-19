@@ -1,66 +1,78 @@
 #!/bin/bash
-
-# 🛠️ CLI Tools - Instalador Simples v2.0
-# Instalador funcional sem interfaces complexas
+# CLI Tools - Script de Instalação Automática
+# Versão 2.0 - Estrutura reorganizada
 
 set -e
 
-# Cores
+# Cores para output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
+# Função para imprimir com cores
 print_color() {
     printf "${1}${2}${NC}\n"
 }
 
-print_color $CYAN "🛠️  CLI TOOLS - INSTALADOR SIMPLES"
-print_color $CYAN "=================================="
-echo ""
+# Header
+print_color $PURPLE "
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║  ██████╗██╗     ██╗    ████████╗ ██████╗  ██████╗ ██╗     ███████╗  ║
+║ ██╔════╝██║     ██║    ╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██╔════╝  ║
+║ ██║     ██║     ██║       ██║   ██║   ██║██║   ██║██║     ███████╗  ║
+║ ╚██████╗███████╗██║       ██║   ╚██████╔╝╚██████╔╝███████╗███████║  ║
+║  ╚═════╝╚══════╝╚═╝       ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚══════╝  ║
+║                                                                      ║
+║                    🚀 Instalação Automática v2.0 🚀                  ║
+╚══════════════════════════════════════════════════════════════════════╝
+"
 
-# 1. Verificar Python
-print_color $YELLOW "🔍 Verificando Python..."
+print_color $CYAN "🔧 Iniciando instalação do CLI Tools..."
+
+# Verificar Python
 if ! command -v python3 &> /dev/null; then
-    print_color $RED "❌ Python 3 não encontrado"
+    print_color $RED "❌ Python 3 não encontrado. Instale Python 3.8+ primeiro."
     exit 1
 fi
+
 PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-print_color $GREEN "✅ Python $PYTHON_VERSION"
+print_color $GREEN "✅ Python $PYTHON_VERSION encontrado"
 
-# 2. Verificar pip
+# Verificar pip
 if ! command -v pip3 &> /dev/null; then
-    print_color $RED "❌ pip3 não encontrado"
+    print_color $RED "❌ pip3 não encontrado. Instale pip primeiro."
     exit 1
 fi
-print_color $GREEN "✅ pip3 encontrado"
 
-# 3. Instalar dependências
-print_color $YELLOW "📦 Instalando dependências..."
-pip3 install click requests rich --user --quiet
-print_color $GREEN "✅ Dependências instaladas"
+# Diretório de instalação
+INSTALL_DIR="$HOME/.local/share/cli-tools"
+BIN_DIR="$HOME/.local/bin"
 
-# 4. Criar diretórios
-print_color $YELLOW "📁 Criando estrutura..."
-INSTALL_DIR="$HOME/.local/bin"
-SHARE_DIR="$HOME/.local/share/cli-tools"
+print_color $BLUE "📁 Diretório de instalação: $INSTALL_DIR"
+
+# Criar diretórios
 mkdir -p "$INSTALL_DIR"
-mkdir -p "$SHARE_DIR"
-print_color $GREEN "✅ Diretórios criados"
+mkdir -p "$BIN_DIR"
 
-# 5. Copiar arquivos
-print_color $YELLOW "📋 Copiando arquivos..."
-cp -r cli_tools "$SHARE_DIR/"
-cp requirements.txt "$SHARE_DIR/"
-cp .env.example "$SHARE_DIR/"
-cp README.md "$SHARE_DIR/" 2>/dev/null || true
-print_color $GREEN "✅ Arquivos copiados"
+# Copiar arquivos
+print_color $YELLOW "📦 Copiando arquivos..."
+cp -r src "$INSTALL_DIR/"
+cp requirements.txt "$INSTALL_DIR/"
+cp README.md "$INSTALL_DIR/"
 
-# 6. Criar comando executável
-print_color $YELLOW "🔧 Criando comando..."
-cat > "$INSTALL_DIR/cli-tools" << 'EOF'
+# Instalar dependências
+print_color $YELLOW "📚 Instalando dependências..."
+cd "$INSTALL_DIR"
+pip3 install --user -r requirements.txt
+
+# Criar wrapper executável
+print_color $YELLOW "🔗 Criando comando cli-tools..."
+cat > "$BIN_DIR/cli-tools" << 'EOF'
 #!/bin/bash
 # CLI Tools - Comando Principal
 
@@ -74,68 +86,61 @@ CLI_TOOLS_DIR="$HOME/.local/share/cli-tools"
 # Executar
 cd "$CLI_TOOLS_DIR"
 export PYTHONPATH="$CLI_TOOLS_DIR:$PYTHONPATH"
-python3 -m cli_tools.main "$@"
+python3 -m src.main "$@"
 EOF
 
-chmod +x "$INSTALL_DIR/cli-tools"
-print_color $GREEN "✅ Comando criado"
+chmod +x "$BIN_DIR/cli-tools"
 
-# 7. Configurar PATH
-print_color $YELLOW "🛤️  Configurando PATH..."
+# Verificar se ~/.local/bin está no PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    print_color $YELLOW "⚠️  Adicionando ~/.local/bin ao PATH..."
+    
     # Detectar shell
-    if [ -n "$ZSH_VERSION" ]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-        print_color $BLUE "📝 Adicionado ao ~/.zshrc"
-    elif [ -n "$BASH_VERSION" ]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-        print_color $BLUE "📝 Adicionado ao ~/.bashrc"
+    if [[ $SHELL == *"zsh"* ]]; then
+        SHELL_RC="$HOME/.zshrc"
+    elif [[ $SHELL == *"fish"* ]]; then
+        SHELL_RC="$HOME/.config/fish/config.fish"
+    else
+        SHELL_RC="$HOME/.bashrc"
     fi
+    
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
     export PATH="$HOME/.local/bin:$PATH"
+    
+    print_color $GREEN "✅ PATH atualizado em $SHELL_RC"
 fi
-print_color $GREEN "✅ PATH configurado"
 
-# 8. Criar configuração básica
-print_color $YELLOW "⚙️  Criando configuração..."
-cat > "$SHARE_DIR/.env" << 'EOF'
-# 🔑 CLI Tools - Configuração
-# Configure suas chaves de API aqui
+# Criar diretório de configuração
+CONFIG_DIR="$HOME/.cli-tools"
+mkdir -p "$CONFIG_DIR"
 
-# APIs (configure conforme necessário)
-PEXELS_API_KEY=
-FIGMA_ACCESS_TOKEN=
-GEMINI_API_KEY=
-
-# Configurações
-CLI_TOOLS_VERSION=1.1.0
-DEFAULT_TIMEOUT=30
-DOWNLOAD_TIMEOUT=120
-MAX_RETRIES=3
-AI_VERBOSITY=basic
-EOF
-print_color $GREEN "✅ Configuração criada"
-
-# 9. Testar instalação
-print_color $YELLOW "🧪 Testando..."
-if "$INSTALL_DIR/cli-tools" --version &> /dev/null; then
-    print_color $GREEN "✅ Teste passou!"
+# Testar instalação
+print_color $YELLOW "🧪 Testando instalação..."
+if "$BIN_DIR/cli-tools" --version &> /dev/null; then
+    print_color $GREEN "✅ CLI Tools instalado com sucesso!"
 else
-    print_color $RED "❌ Teste falhou"
+    print_color $RED "❌ Erro na instalação. Verifique os logs acima."
     exit 1
 fi
 
-# 10. Finalização
-echo ""
-print_color $GREEN "🎉 INSTALAÇÃO CONCLUÍDA!"
-print_color $CYAN "========================"
-echo ""
-print_color $BLUE "Comando instalado: cli-tools"
-print_color $BLUE "Localização: $INSTALL_DIR/cli-tools"
-print_color $BLUE "Configuração: $SHARE_DIR/.env"
-echo ""
-print_color $YELLOW "📋 Próximos passos:"
-print_color $CYAN "1. Reinicie o terminal ou execute: source ~/.bashrc"
-print_color $CYAN "2. Configure APIs em: $SHARE_DIR/.env"
-print_color $CYAN "3. Teste: cli-tools --help"
-echo ""
-print_color $GREEN "✨ Pronto para usar!"
+# Sucesso
+print_color $GREEN "
+🎉 Instalação concluída com sucesso!
+
+📋 Próximos passos:
+1. Reinicie seu terminal ou execute: source ~/.bashrc
+2. Configure suas APIs: cli-tools config --interactive
+3. Teste o sistema: cli-tools status
+4. Veja a ajuda: cli-tools --help
+
+🚀 Comandos disponíveis:
+  cli-tools search \"natureza\" -n 5    # Buscar imagens
+  cli-tools figma abc123def            # Extrair Figma
+  cli-tools repo owner/repo            # Baixar repositório
+  cli-tools ui                         # Interface interativa
+  cli-tools status                     # Status do sistema
+
+📚 Documentação completa em: ~/.local/share/cli-tools/README.md
+"
+
+print_color $PURPLE "Obrigado por usar CLI Tools! 🛠️"
