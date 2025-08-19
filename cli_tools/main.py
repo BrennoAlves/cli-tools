@@ -31,6 +31,7 @@ sys.path.append(str(Path(__file__).parent))
 from lib.config import ConfigAPI, validar_chaves_api
 from lib.interface import InterfaceLimpa
 from lib.config_ia import config_ia, NivelExplicacao
+from lib.config_diretorios import config_diretorios
 
 # Versão atual
 __version__ = "1.1.0"
@@ -81,24 +82,32 @@ def validar_chave_figma(chave):
         
     return True
 
-def sanitizar_caminho(caminho):
-    """Sanitizar caminho de saída"""
+def sanitizar_caminho(caminho, tipo_material='imagens'):
+    """Sanitizar caminho de saída com suporte a diretórios configurados"""
     if not caminho:
-        return None
+        # Se não especificado, usar diretório configurado para o tipo
+        return config_diretorios.obter_diretorio(tipo_material)
     
-    # Resolver caminho absoluto a partir do diretório atual
+    # Usar diretório preservado pelo wrapper
+    user_cwd = os.environ.get('USER_PWD', os.getcwd())
+    
     if caminho == '.':
-        caminho_absoluto = Path.cwd()
+        return user_cwd
+    elif caminho == 'default':
+        # Usar diretório padrão configurado
+        return config_diretorios.obter_diretorio(tipo_material)
     else:
-        caminho_absoluto = Path(caminho).resolve()
+        output_path = Path(caminho)
+        if not output_path.is_absolute():
+            caminho = str(Path(user_cwd) / output_path)
+        else:
+            caminho = str(output_path)
     
-    # Verificar se não contém path traversal perigoso
-    caminho_str = str(caminho_absoluto)
-    if caminho_str.startswith('/etc') or caminho_str.startswith('/root'):
-        # Caminho perigoso - usar diretório atual
-        return str(Path.cwd() / Path(caminho).name)
+    # Verificar se não é caminho perigoso
+    if caminho.startswith('/etc') or caminho.startswith('/root'):
+        return config_diretorios.obter_diretorio(tipo_material)
     
-    return str(caminho_absoluto)
+    return caminho
 
 def processar_flags_ia(ctx, explain, dry_run, interactive):
     """Processar flags de controle da IA"""
@@ -228,17 +237,60 @@ def setup(ctx):
     controlador_uso.setup_inicial()
 
 @cli.command()
+@click.option('--workspace', help='Configurar diretório principal de trabalho')
+@click.option('--imagens', help='Configurar diretório para imagens')
+@click.option('--figma', help='Configurar diretório para designs Figma')
+@click.option('--repos', help='Configurar diretório para repositórios')
+@click.option('--show-dirs', is_flag=True, help='Mostrar diretórios configurados')
 @click.pass_context
-def config(ctx):
-    """⚙️ Gerenciar configurações das APIs"""
+def config(ctx, workspace, imagens, figma, repos, show_dirs):
+    """⚙️ Gerenciar configurações das APIs e diretórios"""
     
     ui = InterfaceLimpa(ctx.obj['quiet'])
-    ui.mostrar_cabecalho("Configuração das APIs", "Gerenciar chaves e configurações")
     
-    # Mostrar configurações atuais
-    print("📋 Configurações Atuais:")
-    print()
+    # Gerenciar diretórios
+    if workspace:
+        if config_diretorios.configurar_workspace(workspace):
+            click.echo(f"✅ Workspace configurado: {workspace}")
+        else:
+            click.echo(f"❌ Erro ao configurar workspace: {workspace}")
+        return
     
+    if imagens:
+        if config_diretorios.configurar_diretorio_especifico('imagens', imagens):
+            click.echo(f"✅ Diretório de imagens configurado: {imagens}")
+        else:
+            click.echo(f"❌ Erro ao configurar diretório de imagens: {imagens}")
+        return
+    
+    if figma:
+        if config_diretorios.configurar_diretorio_especifico('figma', figma):
+            click.echo(f"✅ Diretório Figma configurado: {figma}")
+        else:
+            click.echo(f"❌ Erro ao configurar diretório Figma: {figma}")
+        return
+    
+    if repos:
+        if config_diretorios.configurar_diretorio_especifico('repos', repos):
+            click.echo(f"✅ Diretório de repositórios configurado: {repos}")
+        else:
+            click.echo(f"❌ Erro ao configurar diretório de repositórios: {repos}")
+        return
+    
+    if show_dirs:
+        status = config_diretorios.status()
+        click.echo("\n📁 Diretórios Configurados:")
+        click.echo(f"  Workspace: {status['workspace']} {'✅' if status['workspace_exists'] else '❌'}")
+        click.echo(f"  Imagens:   {status['imagens']} {'✅' if status['imagens_exists'] else '❌'}")
+        click.echo(f"  Figma:     {status['figma']} {'✅' if status['figma_exists'] else '❌'}")
+        click.echo(f"  Repos:     {status['repos']} {'✅' if status['repos_exists'] else '❌'}")
+        return
+    
+    # Mostrar configuração completa
+    ui.mostrar_cabecalho("Configuração Completa", "APIs e Diretórios")
+    
+    # APIs
+    print("🔑 APIs:")
     config_api = ConfigAPI()
     configs = [
         ("PEXELS_API_KEY", config_api.pexels_key, "Busca de imagens"),
@@ -248,17 +300,23 @@ def config(ctx):
     
     for nome, valor, descricao in configs:
         status = "✅ Configurada" if valor else "❌ Não configurada"
-        valor_mostrar = f"{valor[:10]}..." if valor and len(valor) > 10 else "Não definida"
-        print(f"  {nome}:")
-        print(f"    Status: {status}")
-        print(f"    Valor: {valor_mostrar}")
-        print(f"    Uso: {descricao}")
-        print()
+        print(f"  {nome}: {status}")
     
-    print("📝 Para configurar:")
-    print("  1. Edite o arquivo .env na raiz do projeto")
-    print("  2. Adicione suas chaves de API")
-    print("  3. Execute 'cli-tools setup' para verificar")
+    print()
+    
+    # Diretórios
+    status = config_diretorios.status()
+    print("📁 Diretórios:")
+    print(f"  Workspace: {status['workspace']} {'✅' if status['workspace_exists'] else '❌'}")
+    print(f"  Imagens:   {status['imagens']} {'✅' if status['imagens_exists'] else '❌'}")
+    print(f"  Figma:     {status['figma']} {'✅' if status['figma_exists'] else '❌'}")
+    print(f"  Repos:     {status['repos']} {'✅' if status['repos_exists'] else '❌'}")
+    print()
+    
+    print("🔧 Comandos de configuração:")
+    print("  cli-tools config --workspace /novo/caminho")
+    print("  cli-tools config --imagens /caminho/imagens")
+    print("  cli-tools config --show-dirs")
     print()
     
     arquivo_env = Path(__file__).parent.parent / ".env"
@@ -374,7 +432,7 @@ def help(ctx):
 @cli.command()
 @click.argument('consulta')
 @click.option('--count', '-c', '--number', '-n', default=3, help='Número de imagens')
-@click.option('--output', '-o', help='Diretório de saída')
+@click.option('--output', '-o', help='Diretório de saída (. = atual, default = configurado)')
 @click.option('--orientation', type=click.Choice(['landscape', 'portrait', 'square']), help='Orientação')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
@@ -391,23 +449,8 @@ def search(ctx, consulta, count, output, orientation, output_json):
         click.echo("⚠️ Limitando busca a 50 imagens por questões de segurança.")
         count = 50
     
-    # Sanitizar output
-    if output:
-        # Usar diretório preservado pelo wrapper
-        user_cwd = os.environ.get('USER_PWD', os.getcwd())
-        
-        if output == '.':
-            output = user_cwd
-        else:
-            output_path = Path(output)
-            if not output_path.is_absolute():
-                output = str(Path(user_cwd) / output_path)
-            else:
-                output = str(output_path)
-        
-        # Verificar se não é caminho perigoso
-        if output.startswith('/etc') or output.startswith('/root'):
-            output = user_cwd
+    # Sanitizar output usando sistema de diretórios
+    output_path = sanitizar_caminho(output, 'imagens')
     
     cmd = [
         sys.executable,
@@ -420,8 +463,16 @@ def search(ctx, consulta, count, output, orientation, output_json):
     if ctx.obj['quiet']:
         cmd.insert(-3, "--quiet")
     
-    if output:
-        cmd.extend(["--output", output])
+    if output_path:
+        cmd.extend(["--output", output_path])
+    
+    if orientation:
+        cmd.extend(["--orientation", orientation])
+    
+    if output_json:
+        cmd.extend(["--format", "json"])
+    
+    subprocess.run(cmd)
     
     if orientation:
         cmd.extend(["--orientation", orientation])
@@ -435,7 +486,7 @@ def search(ctx, consulta, count, output, orientation, output_json):
 @click.argument('chave_arquivo')
 @click.option('--max', '--number', '-n', default=3, help='Máximo de imagens')
 @click.option('--format', '-f', default='png', help='Formato da imagem')
-@click.option('--output', '-o', help='Diretório de saída')
+@click.option('--output', '-o', help='Diretório de saída (. = atual, default = configurado)')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
 def figma(ctx, chave_arquivo, max, format, output, output_json):
@@ -451,9 +502,8 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
         click.echo("⚠️ Limitando extração a 20 designs por questões de segurança.")
         max = 20
     
-    # Sanitizar output
-    if output:
-        output = sanitizar_caminho(output)
+    # Sanitizar output usando sistema de diretórios
+    output_path = sanitizar_caminho(output, 'figma')
     
     cmd = [
         sys.executable,
@@ -467,8 +517,8 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
     if ctx.obj['quiet']:
         cmd.insert(-4, "--quiet")
     
-    if output:
-        cmd.extend(["--output", output])
+    if output_path:
+        cmd.extend(["--output", output_path])
     
     subprocess.run(cmd)
 
@@ -476,7 +526,7 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
 @click.argument('repositorio')
 @click.argument('query', required=False)
 @click.option('--query', '-q', 'query_flag', help='Query para seleção IA')
-@click.option('--output', '-o', help='Diretório de saída')
+@click.option('--output', '-o', help='Diretório de saída (. = atual, default = configurado)')
 @click.option('--explain', type=click.Choice(['silencioso', 'basico', 'detalhado', 'debug']), help='Nível de explicação da IA')
 @click.option('--dry-run', is_flag=True, help='Mostrar o que seria feito sem executar')
 @click.option('--interactive', '-i', is_flag=True, help='Modo interativo')
@@ -502,9 +552,8 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
     # Processar flags de IA
     config_ia_atual = processar_flags_ia(ctx, explain, dry_run, interactive)
     
-    # Sanitizar output
-    if output:
-        output = sanitizar_caminho(output)
+    # Sanitizar output usando sistema de diretórios
+    output_path = sanitizar_caminho(output, 'repos')
     
     cmd = [
         sys.executable,
@@ -519,8 +568,8 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
     if ctx.obj['quiet']:
         cmd.insert(-2, "--quiet")
     
-    if output:
-        cmd.extend(["--output", output])
+    if output_path:
+        cmd.extend(["--output", output_path])
     
     if explain:
         cmd.extend(["--explain", explain])
