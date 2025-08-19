@@ -545,11 +545,24 @@ def cli(ctx, quiet):
 @click.argument('repo')
 @click.option('--output', '-o', help='Diretório de saída')
 @click.option('--category', '-c', help='Categoria do repositório')
+@click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def clone(ctx, repo, output, category):
+def clone(ctx, repo, output, category, output_json):
     """Clonar repositório completo"""
     
     baixador = BaixadorRepositorio(silencioso=ctx.obj['quiet'])
+    
+    # Saída JSON
+    if output_json:
+        import json
+        resultado = {
+            "repositorio": repo,
+            "tipo": "clone_completo",
+            "categoria": category,
+            "output": output
+        }
+        print(json.dumps(resultado, indent=2, ensure_ascii=False))
+        return
     
     sucesso = baixador.clonar_repositorio(repo, output, category)
     
