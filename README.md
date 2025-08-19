@@ -5,7 +5,7 @@ Kit de ferramentas para desenvolvedores com IA integrada.
 ## ⚡ Instalação (Comando Único)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/BrennoAlves/cli-tools/main/install-interactive.sh | bash
+curl -sSL https://raw.githubusercontent.com/BrennoAlves/cli-tools/main/install.sh | bash
 ```
 
 ## 🚀 Uso
