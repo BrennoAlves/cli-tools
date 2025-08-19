@@ -117,7 +117,7 @@ def processar_flags_ia(ctx, explain, dry_run, interactive):
     
     return config_ia.config
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version=__version__, prog_name="🛠️ CLI Tools")
 @click.option('--quiet', '-q', is_flag=True, help='Modo silencioso')
 @click.pass_context
@@ -125,6 +125,17 @@ def cli(ctx, quiet):
     """🛠️ Kit de ferramentas para desenvolvedores com IA"""
     ctx.ensure_object(dict)
     ctx.obj['quiet'] = quiet
+    
+    # Se nenhum comando foi especificado, abrir navegação interativa
+    if ctx.invoked_subcommand is None:
+        try:
+            from lib.navegacao_cli import navegador_cli
+            navegador_cli.navegar()
+        except KeyboardInterrupt:
+            print("\n\n👋 Até logo!")
+        except Exception as e:
+            print(f"\n❌ Erro na navegação: {e}")
+            print("💡 Use 'cli-tools --help' para ver comandos disponíveis")
 
 @cli.command()
 @click.pass_context
