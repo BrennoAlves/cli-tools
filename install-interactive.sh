@@ -175,6 +175,8 @@ print_color $CYAN "• Básico - Resultado + resumo (recomendado)"
 print_color $CYAN "• Detalhado - Mostrar processo completo"
 print_color $CYAN "• Debug - Tudo + informações técnicas"
 echo ""
+print_color $PURPLE "💡 Interface moderna com navegação por setas (↑↓) disponível!"
+echo ""
 
 read -p "Deseja configurar o comportamento da IA agora? [S/n]: " config_ia
 config_ia=${config_ia:-S}

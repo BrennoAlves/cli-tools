@@ -40,11 +40,22 @@ cli-tools ai-config --explain detailed
 
 ## 🤖 Controle da IA
 
-### Níveis de Explicação
-- `--explain silent` - Só resultado
-- `--explain basic` - Resultado + resumo (padrão)
-- `--explain detailed` - Processo completo
-- `--explain debug` - Tudo + debug
+### Interface Moderna com Navegação
+- **🎮 Navegação por setas** - Interface estilo Gemini (↑↓ + Enter)
+- **🔢 Seleção rápida** - Digite números 1-4 para escolha direta
+- **🔄 Fallback automático** - Menu tradicional se terminal não suportar
+- **🤖 Compatível com IAs** - Comandos diretos funcionam normalmente
+
+### Modelos Pré-Configurados
+```bash
+# Interface navegável
+cli-tools ai-config --interactive
+
+# Comandos diretos (para IAs)
+cli-tools ai-config --modelo conservador  # 🛡️ Máxima segurança
+cli-tools ai-config --modelo equilibrado  # ⚖️ Padrão balanceado  
+cli-tools ai-config --modelo yolo         # 🚀 Rápido e direto
+```
 
 ### Modos Especiais
 - `--dry-run` - Mostrar o que seria feito sem executar
