@@ -14,6 +14,7 @@ Uso:
     cli-tools help
 """
 
+import re
 import sys
 import click
 import subprocess
@@ -23,6 +24,68 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from lib.config import ConfigAPI, validar_chaves_api
 from lib.interface import InterfaceLimpa
+
+def validar_nome_repo(repo):
+    """Validar nome do repositório GitHub"""
+    if not repo or not isinstance(repo, str):
+        return False
+    
+    # Formato: usuario/repositorio
+    if not re.match(r'^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$', repo):
+        return False
+    
+    # Evitar path traversal
+    if '..' in repo or repo.startswith('/') or '\\' in repo:
+        return False
+        
+    return True
+
+def validar_consulta(consulta):
+    """Validar consulta de busca"""
+    if not consulta or not isinstance(consulta, str):
+        return False
+    
+    # Limitar tamanho
+    if len(consulta) > 200:
+        return False
+    
+    # Remover caracteres perigosos
+    caracteres_perigosos = ['<', '>', '"', "'", '&', ';', '|', '`', '$']
+    if any(char in consulta for char in caracteres_perigosos):
+        return False
+        
+    return True
+
+def validar_chave_figma(chave):
+    """Validar chave do Figma"""
+    if not chave or not isinstance(chave, str):
+        return False
+    
+    # Formato básico de chave Figma
+    if not re.match(r'^[a-zA-Z0-9-]+$', chave):
+        return False
+    
+    # Evitar path traversal
+    if '..' in chave or '/' in chave or '\\' in chave:
+        return False
+        
+    return True
+
+def sanitizar_caminho(caminho):
+    """Sanitizar caminho de saída"""
+    if not caminho:
+        return None
+    
+    # Resolver caminho absoluto
+    caminho_absoluto = Path(caminho).resolve()
+    
+    # Verificar se está dentro do diretório atual ou subdiretórios
+    try:
+        caminho_absoluto.relative_to(Path.cwd())
+        return str(caminho_absoluto)
+    except ValueError:
+        # Caminho fora do diretório atual - usar diretório atual
+        return str(Path.cwd() / Path(caminho).name)
 
 @click.group()
 @click.version_option(version=f"{ConfigAPI.VERSION}", prog_name="🛠️ Ferramentas CLI")
@@ -222,6 +285,20 @@ def help(ctx):
 def search(ctx, consulta, count, output, orientation):
     """🖼️ Buscar e baixar imagens"""
     
+    # Validar entrada
+    if not validar_consulta(consulta):
+        click.echo("❌ Consulta inválida. Use apenas texto simples sem caracteres especiais.")
+        return
+    
+    # Limitar count
+    if count > 50:
+        click.echo("⚠️ Limitando busca a 50 imagens por questões de segurança.")
+        count = 50
+    
+    # Sanitizar output
+    if output:
+        output = sanitizar_caminho(output)
+    
     cmd = [
         sys.executable,
         str(Path(__file__).parent / "tools" / "buscar-imagens.py"),
@@ -250,6 +327,20 @@ def search(ctx, consulta, count, output, orientation):
 def figma(ctx, chave_arquivo, max, format, output):
     """🎨 Extrair designs do Figma"""
     
+    # Validar chave do arquivo
+    if not validar_chave_figma(chave_arquivo):
+        click.echo("❌ Chave do arquivo Figma inválida. Use apenas letras, números e hífens.")
+        return
+    
+    # Limitar max
+    if max > 20:
+        click.echo("⚠️ Limitando extração a 20 designs por questões de segurança.")
+        max = 20
+    
+    # Sanitizar output
+    if output:
+        output = sanitizar_caminho(output)
+    
     cmd = [
         sys.executable,
         str(Path(__file__).parent / "tools" / "extrator-figma.py"),
@@ -274,6 +365,20 @@ def figma(ctx, chave_arquivo, max, format, output):
 @click.pass_context
 def repo(ctx, repo, query, output):
     """📦 Baixar repositório com seleção IA"""
+    
+    # Validar nome do repositório
+    if not validar_nome_repo(repo):
+        click.echo("❌ Nome do repositório inválido. Use o formato: usuario/repositorio")
+        return
+    
+    # Validar query
+    if not validar_consulta(query):
+        click.echo("❌ Query inválida. Use apenas texto simples sem caracteres especiais.")
+        return
+    
+    # Sanitizar output
+    if output:
+        output = sanitizar_caminho(output)
     
     cmd = [
         sys.executable,
