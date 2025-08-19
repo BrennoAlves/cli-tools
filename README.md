@@ -23,9 +23,25 @@ cli-tools figma "abc123def" -n 3 --format png
 # Baixar repositório com IA
 cli-tools repo "tailwindcss/tailwindcss" -q "componentes"
 
-# Configurar IA
-cli-tools ai-config --interactive
+# Configurar workspace
+cli-tools config --workspace ./materials
 ```
+
+## 📁 Workspace Inteligente
+
+O CLI Tools cria automaticamente um workspace organizado:
+
+```
+materials/
+├── README.md          # Documentação automática
+├── imagens/          # Imagens do Pexels
+├── figma/            # Designs do Figma
+└── repos/            # Repositórios clonados
+```
+
+- **Em projetos (.git)**: `./materials`
+- **Fora de projetos**: `~/materials`
+- **Configurável**: `cli-tools config --workspace /caminho`
 
 ## 🔑 APIs Necessárias
 
@@ -41,8 +57,7 @@ cli-tools ai-config --interactive
 | `figma` | Extrair designs do Figma |
 | `repo` | Baixar repositório com IA |
 | `status` | Status do sistema |
-| `config` | Configurar APIs |
-| `ai-config` | Configurar IA |
+| `config` | Configurar APIs e diretórios |
 
 ## 🎯 Exemplos
 
@@ -56,10 +71,13 @@ cli-tools repo "facebook/react" -q "apenas CSS" --dry-run
 # Figma em SVG
 cli-tools figma "design-key" -n 5 --format svg
 
+# Configurar workspace personalizado
+cli-tools config --workspace /meu/projeto/assets
+
 # Saída JSON para pipelines
 cli-tools search "interface" --json | jq '.urls[]'
 ```
 
 ---
 
-**v1.1.0** - Ferramentas modernas para desenvolvedores modernos
+**v1.1.0** - Workspace inteligente para desenvolvedores modernos

@@ -50,4 +50,8 @@ Thumbs.db
 
 # Amazon Q (documentação interna)
 .amazonq/
-cli-materials/repos/
+
+# Materials directory (downloaded content)
+materials/repos/
+materials/imagens/
+materials/figma/

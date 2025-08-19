@@ -13,7 +13,7 @@ Uso:
     cli-tools costs
     cli-tools help
 
-Versão: 1.1.0
+Versão: 1.1.0 - Workspace Inteligente
 """
 
 import re

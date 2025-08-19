@@ -1,4 +1,4 @@
-# 🛠️ CLI Tools - Materiais de Apoio
+# 🛠️ CLI Tools - Materials
 
 Este diretório contém materiais baixados pelas ferramentas CLI:
 
@@ -22,6 +22,6 @@ cli-tools config --repos /caminho/repos
 
 Você pode mover este diretório e reconfigurar:
 ```bash
-mv cli-materials /novo/local/
-cli-tools config --workspace /novo/local/cli-materials
+mv materials /novo/local/
+cli-tools config --workspace /novo/local/materials
 ```
