@@ -25,8 +25,8 @@ import io
 
 # Adicionar lib ao path
 sys.path.append(str(Path(__file__).parent.parent))
-from lib.config import ConfigAPI, validar_chaves_api
-from lib.interface import InterfaceLimpa
+from core.config import ConfigAPI, validar_chaves_api
+from core.interface import InterfaceLimpa
 
 class BaixadorRepositorio:
     """Ferramenta para baixar e gerenciar repositórios de referência"""
@@ -72,7 +72,7 @@ class BaixadorRepositorio:
         """Obter informações do repositório via GitHub API"""
         
         # Verificar limite antes de fazer request
-        from lib.controle_uso import controlador_uso
+        from core.controle_uso import controlador_uso
         
         pode_fazer, mensagem = controlador_uso.verificar_limite("github", 1)
         
@@ -145,7 +145,7 @@ class BaixadorRepositorio:
         """
         
         # Verificar limite antes de fazer request
-        from lib.controle_uso import controlador_uso
+        from core.controle_uso import controlador_uso
         
         pode_fazer, mensagem = controlador_uso.verificar_limite("gemini", 1)
         
@@ -260,7 +260,7 @@ RESPOSTA (apenas números):"""
             response.raise_for_status()
             
             # Registrar uso após sucesso
-            from lib.controle_uso import controlador_uso
+            from core.controle_uso import controlador_uso
             controlador_uso.registrar_uso("gemini", 1)
             
             dados = response.json()

@@ -19,8 +19,8 @@ from typing import List, Dict
 
 # Adicionar lib ao path
 sys.path.append(str(Path(__file__).parent.parent))
-from lib.config import ConfigAPI, validar_chaves_api
-from lib.interface import InterfaceLimpa
+from core.config import ConfigAPI, validar_chaves_api
+from core.interface import InterfaceLimpa
 
 class FerramentaBuscaImagens:
     """Ferramenta de busca e download de imagens"""
@@ -58,7 +58,7 @@ class FerramentaBuscaImagens:
         """Buscar imagens via API do Pexels"""
         
         # Verificar limite antes de fazer request
-        from lib.controle_uso import controlador_uso
+        from core.controle_uso import controlador_uso
         
         pode_fazer, mensagem = controlador_uso.verificar_limite("pexels", 1)
         
