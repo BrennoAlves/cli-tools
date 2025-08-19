@@ -560,11 +560,19 @@ def clone(ctx, repo, output, category):
 @click.argument('repo')
 @click.argument('query')
 @click.option('--output', '-o', help='Diretório de saída')
+@click.option('--explain', type=click.Choice(['basic', 'detailed', 'debug']), help='Nível de explicação da IA')
+@click.option('--dry-run', is_flag=True, help='Mostrar o que seria feito sem executar')
+@click.option('--interactive', '-i', is_flag=True, help='Modo interativo')
+@click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def smart(ctx, repo, query, output):
+def smart(ctx, repo, query, output, explain, dry_run, interactive, output_json):
     """Seleção inteligente de arquivos via IA"""
     
     baixador = BaixadorRepositorio(silencioso=ctx.obj['quiet'])
+    
+    # Configurar nível de explicação se fornecido
+    if explain:
+        baixador.nivel_explicacao = explain
     
     # Listar arquivos do repositório
     arquivos = baixador.listar_arquivos_repo(repo)
@@ -579,6 +587,38 @@ def smart(ctx, repo, query, output):
     if not arquivos_selecionados:
         baixador.ui.mostrar_erro("Nenhum arquivo selecionado")
         sys.exit(1)
+    
+    # Modo dry-run: apenas mostrar o que seria feito
+    if dry_run:
+        baixador.ui.mostrar_cabecalho("Modo Dry-Run", "Arquivos que seriam baixados")
+        for i, arquivo in enumerate(arquivos_selecionados, 1):
+            print(f"{i:2d}. {arquivo}")
+        print(f"\nTotal: {len(arquivos_selecionados)} arquivos")
+        print("Use sem --dry-run para baixar os arquivos.")
+        return
+    
+    # Modo interativo: pedir confirmação
+    if interactive:
+        baixador.ui.mostrar_cabecalho("Modo Interativo", "Confirmar seleção")
+        for i, arquivo in enumerate(arquivos_selecionados, 1):
+            print(f"{i:2d}. {arquivo}")
+        
+        resposta = input(f"\nBaixar {len(arquivos_selecionados)} arquivos? [S/n]: ").strip().lower()
+        if resposta == 'n':
+            print("❌ Operação cancelada pelo usuário.")
+            return
+    
+    # Saída JSON
+    if output_json:
+        import json
+        resultado = {
+            "repositorio": repo,
+            "query": query,
+            "arquivos_selecionados": arquivos_selecionados,
+            "total": len(arquivos_selecionados)
+        }
+        print(json.dumps(resultado, indent=2, ensure_ascii=False))
+        return
     
     # Baixar arquivos selecionados
     sucesso = baixador.baixar_arquivos_especificos(repo, arquivos_selecionados, output)
