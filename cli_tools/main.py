@@ -28,10 +28,10 @@ USER_CURRENT_DIR = os.getcwd()
 
 # Adicionar paths para imports
 sys.path.append(str(Path(__file__).parent))
-from lib.config import ConfigAPI, validar_chaves_api
-from lib.interface import InterfaceLimpa
-from lib.config_ia import config_ia, NivelExplicacao
-from lib.config_diretorios import config_diretorios
+from core.config import ConfigAPI, validar_chaves_api
+from core.interface import InterfaceLimpa
+from core.config_ia import config_ia, NivelExplicacao
+from core.config_diretorios import config_diretorios
 
 # Versão atual
 __version__ = "1.1.0"
@@ -145,7 +145,7 @@ def cli(ctx, quiet):
     # Se nenhum comando foi especificado, abrir navegação interativa
     if ctx.invoked_subcommand is None:
         try:
-            from lib.navegacao_cli import navegador_cli
+            from core.navegacao_cli import navegador_cli
             navegador_cli.navegar()
         except KeyboardInterrupt:
             print("\n\n👋 Até logo!")
@@ -184,7 +184,7 @@ def status(ctx):
     
     # Mostrar dashboard de uso
     if not ctx.obj['quiet']:
-        from lib.controle_uso import controlador_uso
+        from core.controle_uso import controlador_uso
         controlador_uso.mostrar_dashboard_uso()
     
     if not ctx.obj['quiet']:
@@ -233,7 +233,7 @@ def status(ctx):
 @click.pass_context
 def setup(ctx):
     """🔧 Configurar sistema inicial"""
-    from lib.controle_uso import controlador_uso
+    from core.controle_uso import controlador_uso
     controlador_uso.setup_inicial()
 
 @cli.command()
@@ -336,7 +336,7 @@ def ai_config(ctx, interactive, show, explain, modelo):
         return
     
     if modelo:
-        from lib.config_ia import ModeloIA
+        from core.config_ia import ModeloIA
         modelo_map = {
             'conservador': ModeloIA.CONSERVADOR,
             'equilibrado': ModeloIA.EQUILIBRADO,
@@ -354,7 +354,7 @@ def ai_config(ctx, interactive, show, explain, modelo):
         return
     
     if explain:
-        from lib.config_ia import NivelExplicacao
+        from core.config_ia import NivelExplicacao
         nivel_map = {
             'silencioso': NivelExplicacao.SILENCIOSO,
             'basico': NivelExplicacao.BASICO,
@@ -383,7 +383,7 @@ def costs(ctx):
         ui.mostrar_cabecalho("Monitor de Custos", "Controle de uso das APIs")
     
     # Mostrar dashboard detalhado
-    from lib.controle_uso import controlador_uso
+    from core.controle_uso import controlador_uso
     controlador_uso.mostrar_dashboard_uso()
     
     if not ctx.obj['quiet']:
