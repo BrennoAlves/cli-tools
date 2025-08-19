@@ -12,7 +12,7 @@ long_description = readme_path.read_text(encoding="utf-8") if readme_path.exists
 
 setup(
     name="cli-tools-br",
-    version="1.0.0",
+    version="1.1.0",
     description="🛠️ Kit de ferramentas para desenvolvedores com IA",
     long_description=long_description,
     long_description_content_type="text/markdown",
