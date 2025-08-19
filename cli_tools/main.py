@@ -303,6 +303,38 @@ def _status_legacy(ctx):
         ui.mostrar_ajuda(comandos)
 
 @cli.command()
+@click.option('--demo', is_flag=True, help='Executar em modo demo (sem APIs reais)')
+@click.pass_context
+def ui(ctx, demo):
+    """🖥️ Abrir interface Textual interativa
+    
+    Abre uma interface TUI completa com:
+    - Dashboard de status interativo
+    - Busca de imagens com formulário
+    - Configuração visual de APIs
+    - Navegação por teclado e mouse
+    """
+    
+    try:
+        from textual_app.main_app import CLIToolsApp
+        
+        if demo:
+            # Modo demo - simular dados
+            import os
+            os.environ['CLI_TOOLS_DEMO_MODE'] = '1'
+        
+        app = CLIToolsApp()
+        app.run()
+        
+    except ImportError as e:
+        ui = InterfaceLimpa(ctx.obj['quiet'])
+        ui.mostrar_erro(f"Erro ao importar Textual: {str(e)}")
+        ui.mostrar_info("Instale as dependências: pip install textual")
+    except Exception as e:
+        ui = InterfaceLimpa(ctx.obj['quiet'])
+        ui.mostrar_erro(f"Erro na interface Textual: {str(e)}")
+
+@cli.command()
 @click.pass_context
 def setup(ctx):
     """🔧 Configurar sistema inicial"""
