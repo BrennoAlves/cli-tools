@@ -27,8 +27,8 @@ class FerramentaBuscaImagens:
     
     def __init__(self, silencioso: bool = False):
         config = ConfigAPI()
-        self.chave_api = config.PEXELS_API_KEY
-        self.url_base = ConfigAPI.PEXELS_BASE_URL
+        self.chave_api = config.pexels_key
+        self.url_base = "https://api.pexels.com/v1"
         self.headers = {"Authorization": self.chave_api}
         self.silencioso = silencioso
         self.ui = InterfaceLimpa(silencioso)
@@ -82,7 +82,7 @@ class FerramentaBuscaImagens:
                 f"{self.url_base}/search",
                 headers=self.headers,
                 params=params,
-                timeout=ConfigAPI.DEFAULT_TIMEOUT
+                timeout=30
             )
             response.raise_for_status()
             
@@ -183,7 +183,7 @@ class FerramentaBuscaImagens:
             return str(caminho_arquivo)
         
         try:
-            response = requests.get(url, timeout=ConfigAPI.DOWNLOAD_TIMEOUT)
+            response = requests.get(url, timeout=120)
             response.raise_for_status()
             
             # Verificar tipo de conteúdo

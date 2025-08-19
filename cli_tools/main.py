@@ -390,7 +390,7 @@ def search(ctx, consulta, count, output, orientation, output_json):
     cmd = [
         sys.executable,
         str(Path(__file__).parent / "tools" / "buscar-imagens.py"),
-        "download",
+        "search",
         consulta,
         "--count", str(count)
     ]
@@ -405,7 +405,7 @@ def search(ctx, consulta, count, output, orientation, output_json):
         cmd.extend(["--orientation", orientation])
     
     if output_json:
-        cmd.extend(["--json"])
+        cmd.extend(["--format", "json"])
     
     subprocess.run(cmd)
 
