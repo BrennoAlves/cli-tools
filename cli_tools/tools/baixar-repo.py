@@ -159,7 +159,7 @@ class BaixadorRepositorio:
         
         # Verificar se tem API key do Gemini
         config = ConfigAPI()
-        if not config.GEMINI_API_KEY:
+        if not config.gemini_key:
             self.ui.mostrar_erro("GEMINI_API_KEY não configurada. Configure no arquivo .env")
             return []
         
@@ -172,10 +172,10 @@ class BaixadorRepositorio:
             
             if arquivos_selecionados:
                 if not self.silencioso:
-                    self.ui.mostrar_status(f"✓ IA selecionou {len(arquivos_selecionados)} arquivos", "sucesso")
+                    self.ui.mostrar_sucesso(f"IA selecionou {len(arquivos_selecionados)} arquivos")
                 return arquivos_selecionados
             else:
-                self.ui.mostrar_status("IA não encontrou arquivos que atendam ao critério", "aviso")
+                self.ui.mostrar_erro("IA não encontrou arquivos que atendam ao critério")
                 return []
                 
         except Exception as e:
@@ -252,7 +252,7 @@ RESPOSTA (apenas números):"""
         try:
             config = ConfigAPI()
             response = requests.post(
-                f"{url}?key={config.GEMINI_API_KEY}",
+                f"{url}?key={config.gemini_key}",
                 headers=headers,
                 json=payload,
                 timeout=30
@@ -397,24 +397,14 @@ RESPOSTA (apenas números):"""
         
         # Baixar cada arquivo
         arquivos_baixados = []
-        progresso = self.ui.mostrar_progresso(f"Baixando {len(arquivos)} arquivos", len(arquivos))
+        total = len(arquivos)
         
-        if progresso:
-            with progresso:
-                tarefa = progresso.add_task("Baixando...", total=len(arquivos))
-                
-                for arquivo in arquivos:
-                    progresso.update(tarefa, description=f"Baixando {arquivo[:30]}...")
-                    
-                    if self._baixar_arquivo_unico(repo, arquivo, dir_destino):
-                        arquivos_baixados.append(arquivo)
-                    
-                    progresso.advance(tarefa)
-        else:
-            # Modo silencioso
-            for arquivo in arquivos:
-                if self._baixar_arquivo_unico(repo, arquivo, dir_destino):
-                    arquivos_baixados.append(arquivo)
+        for i, arquivo in enumerate(arquivos, 1):
+            if not self.silencioso:
+                self.ui.mostrar_progresso(i, total, arquivo)
+            
+            if self._baixar_arquivo_unico(repo, arquivo, dir_destino):
+                arquivos_baixados.append(arquivo)
         
         if arquivos_baixados:
             self._registrar_repo(repo, str(dir_destino), "especificos", "arquivos", arquivos_baixados)
@@ -651,7 +641,7 @@ def list(ctx, category):
     repos = baixador.listar_repositorios(category)
     
     if not repos:
-        ui.mostrar_status("Nenhum repositório encontrado", "aviso")
+        ui.mostrar_erro("Nenhum repositório encontrado")
         return
     
     if not ctx.obj['quiet']:
