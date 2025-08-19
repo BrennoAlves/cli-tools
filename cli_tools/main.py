@@ -20,7 +20,11 @@ import re
 import sys
 import click
 import subprocess
+import os
 from pathlib import Path
+
+# Capturar diretório atual do usuário no início
+USER_CURRENT_DIR = os.getcwd()
 
 # Adicionar paths para imports
 sys.path.append(str(Path(__file__).parent))
@@ -82,16 +86,19 @@ def sanitizar_caminho(caminho):
     if not caminho:
         return None
     
-    # Resolver caminho absoluto
-    caminho_absoluto = Path(caminho).resolve()
+    # Resolver caminho absoluto a partir do diretório atual
+    if caminho == '.':
+        caminho_absoluto = Path.cwd()
+    else:
+        caminho_absoluto = Path(caminho).resolve()
     
-    # Verificar se está dentro do diretório atual ou subdiretórios
-    try:
-        caminho_absoluto.relative_to(Path.cwd())
-        return str(caminho_absoluto)
-    except ValueError:
-        # Caminho fora do diretório atual - usar diretório atual
+    # Verificar se não contém path traversal perigoso
+    caminho_str = str(caminho_absoluto)
+    if caminho_str.startswith('/etc') or caminho_str.startswith('/root'):
+        # Caminho perigoso - usar diretório atual
         return str(Path.cwd() / Path(caminho).name)
+    
+    return str(caminho_absoluto)
 
 def processar_flags_ia(ctx, explain, dry_run, interactive):
     """Processar flags de controle da IA"""
@@ -232,10 +239,11 @@ def config(ctx):
     print("📋 Configurações Atuais:")
     print()
     
+    config_api = ConfigAPI()
     configs = [
-        ("PEXELS_API_KEY", ConfigAPI.PEXELS_API_KEY, "Busca de imagens"),
-        ("FIGMA_API_TOKEN", ConfigAPI.FIGMA_API_TOKEN, "Extração de designs"),
-        ("GEMINI_API_KEY", ConfigAPI.GEMINI_API_KEY, "IA para seleção inteligente")
+        ("PEXELS_API_KEY", config_api.pexels_key, "Busca de imagens"),
+        ("FIGMA_API_TOKEN", config_api.figma_token, "Extração de designs"),
+        ("GEMINI_API_KEY", config_api.gemini_key, "IA para seleção inteligente")
     ]
     
     for nome, valor, descricao in configs:
@@ -385,12 +393,26 @@ def search(ctx, consulta, count, output, orientation, output_json):
     
     # Sanitizar output
     if output:
-        output = sanitizar_caminho(output)
+        # Usar diretório preservado pelo wrapper
+        user_cwd = os.environ.get('USER_PWD', os.getcwd())
+        
+        if output == '.':
+            output = user_cwd
+        else:
+            output_path = Path(output)
+            if not output_path.is_absolute():
+                output = str(Path(user_cwd) / output_path)
+            else:
+                output = str(output_path)
+        
+        # Verificar se não é caminho perigoso
+        if output.startswith('/etc') or output.startswith('/root'):
+            output = user_cwd
     
     cmd = [
         sys.executable,
         str(Path(__file__).parent / "tools" / "buscar-imagens.py"),
-        "search",
+        "download",
         consulta,
         "--count", str(count)
     ]

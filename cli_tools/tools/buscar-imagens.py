@@ -115,45 +115,23 @@ class FerramentaBuscaImagens:
         
         arquivos_baixados = []
         
-        # Mostrar progresso
-        progresso = self.ui.mostrar_progresso(f"Baixando {len(fotos)} imagens", len(fotos))
-        
-        if progresso:
-            with progresso:
-                tarefa = progresso.add_task("Baixando...", total=len(fotos))
-                
-                for i, foto in enumerate(fotos, 1):
-                    url = foto["src"]["medium"]
-                    consulta_segura = "".join(c for c in consulta if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                    consulta_segura = consulta_segura.replace(' ', '_')
-                    nome_arquivo = f"{consulta_segura}_{i}_{foto['id']}.jpg"
-                    
-                    progresso.update(tarefa, description=f"Baixando {nome_arquivo[:30]}...")
-                    
-                    caminho_arquivo = self._baixar_imagem_unica(url, nome_arquivo, dir_saida)
-                    if caminho_arquivo:
-                        arquivos_baixados.append({
-                            'caminho': caminho_arquivo,
-                            'nome': Path(caminho_arquivo).name,
-                            'tamanho': f"{Path(caminho_arquivo).stat().st_size / (1024 * 1024):.2f} MB"
-                        })
-                    
-                    progresso.advance(tarefa)
-        else:
-            # Modo silencioso
-            for i, foto in enumerate(fotos, 1):
-                url = foto["src"]["medium"]
-                consulta_segura = "".join(c for c in consulta if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                consulta_segura = consulta_segura.replace(' ', '_')
-                nome_arquivo = f"{consulta_segura}_{i}_{foto['id']}.jpg"
-                
-                caminho_arquivo = self._baixar_imagem_unica(url, nome_arquivo, dir_saida)
-                if caminho_arquivo:
-                    arquivos_baixados.append({
-                        'caminho': caminho_arquivo,
-                        'nome': Path(caminho_arquivo).name,
-                        'tamanho': f"{Path(caminho_arquivo).stat().st_size / (1024 * 1024):.2f} MB"
-                    })
+        # Baixar cada imagem com progresso simples
+        for i, foto in enumerate(fotos, 1):
+            if not self.silencioso:
+                self.ui.mostrar_progresso(i, len(fotos), f"Baixando imagem {i}")
+            
+            url = foto["src"]["medium"]
+            consulta_segura = "".join(c for c in consulta if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            consulta_segura = consulta_segura.replace(' ', '_')
+            nome_arquivo = f"{consulta_segura}_{i}_{foto['id']}.jpg"
+            
+            caminho_arquivo = self._baixar_imagem_unica(url, nome_arquivo, dir_saida)
+            if caminho_arquivo:
+                arquivos_baixados.append({
+                    'caminho': caminho_arquivo,
+                    'nome': Path(caminho_arquivo).name,
+                    'tamanho': f"{Path(caminho_arquivo).stat().st_size / (1024 * 1024):.2f} MB"
+                })
         
         return arquivos_baixados
     
@@ -340,7 +318,10 @@ def download(ctx, consulta, count, output, orientation, size, color):
     arquivos = ferramenta.baixar_imagens(consulta, quantidade=count, dir_saida=output, **filtros)
     
     if arquivos:
-        ui.mostrar_sucesso(f"Baixadas {len(arquivos)} imagens", arquivos)
+        ui.mostrar_sucesso(f"Baixadas {len(arquivos)} imagens")
+        if not ctx.obj['quiet']:
+            for arquivo in arquivos:
+                print(f"  📁 {arquivo['nome']} ({arquivo['tamanho']})")
     else:
         ui.mostrar_erro("Nenhuma imagem foi baixada")
 

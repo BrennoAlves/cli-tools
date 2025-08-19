@@ -28,8 +28,8 @@ class ExtratorFigma:
     
     def __init__(self, silencioso: bool = False):
         config = ConfigAPI()
-        self.token_api = config.FIGMA_API_TOKEN
-        self.url_base = ConfigAPI.FIGMA_BASE_URL
+        self.token_api = config.figma_token
+        self.url_base = "https://api.figma.com/v1"
         self.headers = {
             "X-Figma-Token": self.token_api,
             "Content-Type": "application/json"
@@ -81,7 +81,7 @@ class ExtratorFigma:
             response = requests.get(
                 f"{self.url_base}/files/{chave_arquivo}",
                 headers=self.headers,
-                timeout=ConfigAPI.DEFAULT_TIMEOUT
+                timeout=30
             )
             response.raise_for_status()
             
@@ -202,7 +202,7 @@ class ExtratorFigma:
                 f"{self.url_base}/images/{chave_arquivo}",
                 headers=self.headers,
                 params=params,
-                timeout=ConfigAPI.DEFAULT_TIMEOUT
+                timeout=30
             )
             response.raise_for_status()
             
