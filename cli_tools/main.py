@@ -5,13 +5,15 @@ CLI nativo brasileiro com IA integrada
 
 Uso:
     cli-tools status
-    cli-tools search "consulta" --count 3
-    cli-tools figma "chave_do_arquivo" --max 3
-    cli-tools repo "user/repo" "query"
+    cli-tools search "consulta" -n 3
+    cli-tools figma "chave_do_arquivo" --number 3
+    cli-tools repo "user/repo" -q "query"
     cli-tools setup
     cli-tools config
     cli-tools costs
     cli-tools help
+
+Versão: 1.1.0
 """
 
 import re
@@ -24,6 +26,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from lib.config import ConfigAPI, validar_chaves_api
 from lib.interface import InterfaceLimpa
+from lib.config_ia import config_ia, NivelExplicacao
+
+# Versão atual
+__version__ = "1.1.0"
 
 def validar_nome_repo(repo):
     """Validar nome do repositório GitHub"""
@@ -87,8 +93,30 @@ def sanitizar_caminho(caminho):
         # Caminho fora do diretório atual - usar diretório atual
         return str(Path.cwd() / Path(caminho).name)
 
+def processar_flags_ia(ctx, explain, dry_run, interactive):
+    """Processar flags de controle da IA"""
+    # Configurar nível de explicação baseado nas flags
+    if explain:
+        if explain == "debug":
+            config_ia.config["nivel_explicacao"] = NivelExplicacao.DEBUG.value
+        elif explain == "detailed":
+            config_ia.config["nivel_explicacao"] = NivelExplicacao.DETALHADO.value
+        else:
+            config_ia.config["nivel_explicacao"] = NivelExplicacao.DETALHADO.value
+    
+    # Configurar modo dry-run
+    if dry_run:
+        config_ia.config["confirmar_selecoes"] = True
+        config_ia.config["mostrar_criterios"] = True
+    
+    # Configurar modo interativo
+    if interactive:
+        config_ia.config["modo_interativo"] = True
+    
+    return config_ia.config
+
 @click.group()
-@click.version_option(version=f"{ConfigAPI.VERSION}", prog_name="🛠️ Ferramentas CLI")
+@click.version_option(version=__version__, prog_name="🛠️ CLI Tools")
 @click.option('--quiet', '-q', is_flag=True, help='Modo silencioso')
 @click.pass_context
 def cli(ctx, quiet):
@@ -214,6 +242,37 @@ def config(ctx):
     
     arquivo_env = Path(__file__).parent.parent / ".env"
     print(f"📁 Arquivo de configuração: {arquivo_env}")
+
+@cli.command(name='ai-config')
+@click.option('--interactive', '-i', is_flag=True, help='Configuração interativa')
+@click.option('--show', is_flag=True, help='Mostrar configuração atual')
+@click.option('--explain', type=click.Choice(['silent', 'basic', 'detailed', 'debug']), help='Definir nível de explicação')
+@click.pass_context
+def ai_config(ctx, interactive, show, explain):
+    """🤖 Configurar comportamento da IA"""
+    
+    if show:
+        config_ia.mostrar_config_atual()
+        return
+    
+    if explain:
+        from lib.config_ia import NivelExplicacao
+        nivel_map = {
+            'silent': NivelExplicacao.SILENCIOSO,
+            'basic': NivelExplicacao.BASICO,
+            'detailed': NivelExplicacao.DETALHADO,
+            'debug': NivelExplicacao.DEBUG
+        }
+        config_ia.set_nivel_explicacao(nivel_map[explain])
+        click.echo(f"✅ Nível de explicação definido para: {explain}")
+        return
+    
+    if interactive:
+        config_ia.configuracao_interativa()
+        return
+    
+    # Mostrar help se nenhuma opção foi passada
+    click.echo(ctx.get_help())
     
     if not arquivo_env.exists():
         print("⚠️  Arquivo .env não encontrado!")
@@ -278,11 +337,12 @@ def help(ctx):
 
 @cli.command()
 @click.argument('consulta')
-@click.option('--count', '-c', default=3, help='Número de imagens')
+@click.option('--count', '-c', '--number', '-n', default=3, help='Número de imagens')
 @click.option('--output', '-o', help='Diretório de saída')
 @click.option('--orientation', type=click.Choice(['landscape', 'portrait', 'square']), help='Orientação')
+@click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def search(ctx, consulta, count, output, orientation):
+def search(ctx, consulta, count, output, orientation, output_json):
     """🖼️ Buscar e baixar imagens"""
     
     # Validar entrada
@@ -316,15 +376,19 @@ def search(ctx, consulta, count, output, orientation):
     if orientation:
         cmd.extend(["--orientation", orientation])
     
+    if output_json:
+        cmd.extend(["--json"])
+    
     subprocess.run(cmd)
 
 @cli.command()
 @click.argument('chave_arquivo')
-@click.option('--max', default=3, help='Máximo de imagens')
-@click.option('--format', default='png', help='Formato da imagem')
+@click.option('--max', '--number', '-n', default=3, help='Máximo de imagens')
+@click.option('--format', '-f', default='png', help='Formato da imagem')
 @click.option('--output', '-o', help='Diretório de saída')
+@click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def figma(ctx, chave_arquivo, max, format, output):
+def figma(ctx, chave_arquivo, max, format, output, output_json):
     """🎨 Extrair designs do Figma"""
     
     # Validar chave do arquivo
@@ -359,22 +423,34 @@ def figma(ctx, chave_arquivo, max, format, output):
     subprocess.run(cmd)
 
 @cli.command()
-@click.argument('repo')
-@click.argument('query')
+@click.argument('repositorio')
+@click.argument('query', required=False)
+@click.option('--query', '-q', 'query_flag', help='Query para seleção IA')
 @click.option('--output', '-o', help='Diretório de saída')
+@click.option('--explain', type=click.Choice(['basic', 'detailed', 'debug']), help='Nível de explicação da IA')
+@click.option('--dry-run', is_flag=True, help='Mostrar o que seria feito sem executar')
+@click.option('--interactive', '-i', is_flag=True, help='Modo interativo')
+@click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def repo(ctx, repo, query, output):
+def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interactive, output_json):
     """📦 Baixar repositório com seleção IA"""
     
+    # Usar query da flag se não foi passada como argumento
+    if not query and query_flag:
+        query = query_flag
+    
     # Validar nome do repositório
-    if not validar_nome_repo(repo):
+    if not validar_nome_repo(repositorio):
         click.echo("❌ Nome do repositório inválido. Use o formato: usuario/repositorio")
         return
     
-    # Validar query
-    if not validar_consulta(query):
+    # Validar query se fornecida
+    if query and not validar_consulta(query):
         click.echo("❌ Query inválida. Use apenas texto simples sem caracteres especiais.")
         return
+    
+    # Processar flags de IA
+    config_ia_atual = processar_flags_ia(ctx, explain, dry_run, interactive)
     
     # Sanitizar output
     if output:
@@ -383,16 +459,30 @@ def repo(ctx, repo, query, output):
     cmd = [
         sys.executable,
         str(Path(__file__).parent / "tools" / "baixar-repo.py"),
-        "smart",
-        repo,
-        query
+        "smart" if query else "clone",
+        repositorio
     ]
     
+    if query:
+        cmd.append(query)
+    
     if ctx.obj['quiet']:
-        cmd.insert(-3, "--quiet")
+        cmd.insert(-2, "--quiet")
     
     if output:
         cmd.extend(["--output", output])
+    
+    if explain:
+        cmd.extend(["--explain", explain])
+    
+    if dry_run:
+        cmd.append("--dry-run")
+    
+    if interactive:
+        cmd.append("--interactive")
+    
+    if output_json:
+        cmd.append("--json")
     
     subprocess.run(cmd)
 
