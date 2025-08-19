@@ -99,10 +99,12 @@ def processar_flags_ia(ctx, explain, dry_run, interactive):
     if explain:
         if explain == "debug":
             config_ia.config["nivel_explicacao"] = NivelExplicacao.DEBUG.value
-        elif explain == "detailed":
+        elif explain == "detalhado":
             config_ia.config["nivel_explicacao"] = NivelExplicacao.DETALHADO.value
-        else:
-            config_ia.config["nivel_explicacao"] = NivelExplicacao.DETALHADO.value
+        elif explain == "silencioso":
+            config_ia.config["nivel_explicacao"] = NivelExplicacao.SILENCIOSO.value
+        else:  # basico
+            config_ia.config["nivel_explicacao"] = NivelExplicacao.BASICO.value
     
     # Configurar modo dry-run
     if dry_run:
@@ -246,21 +248,40 @@ def config(ctx):
 @cli.command(name='ai-config')
 @click.option('--interactive', '-i', is_flag=True, help='Configuração interativa')
 @click.option('--show', is_flag=True, help='Mostrar configuração atual')
-@click.option('--explain', type=click.Choice(['silent', 'basic', 'detailed', 'debug']), help='Definir nível de explicação')
+@click.option('--explain', type=click.Choice(['silencioso', 'basico', 'detalhado', 'debug']), help='Definir nível de explicação')
+@click.option('--modelo', type=click.Choice(['conservador', 'equilibrado', 'yolo']), help='Aplicar modelo pré-configurado')
 @click.pass_context
-def ai_config(ctx, interactive, show, explain):
+def ai_config(ctx, interactive, show, explain, modelo):
     """🤖 Configurar comportamento da IA"""
     
     if show:
         config_ia.mostrar_config_atual()
         return
     
+    if modelo:
+        from lib.config_ia import ModeloIA
+        modelo_map = {
+            'conservador': ModeloIA.CONSERVADOR,
+            'equilibrado': ModeloIA.EQUILIBRADO,
+            'yolo': ModeloIA.YOLO
+        }
+        config_ia.aplicar_modelo(modelo_map[modelo])
+        
+        modelo_desc = {
+            'conservador': '🛡️  Conservador - Máxima segurança e transparência',
+            'equilibrado': '⚖️  Equilibrado - Padrão balanceado',
+            'yolo': '🚀 YOLO - Rápido e direto'
+        }
+        
+        click.echo(f"✅ Modelo {modelo_desc[modelo]} aplicado!")
+        return
+    
     if explain:
         from lib.config_ia import NivelExplicacao
         nivel_map = {
-            'silent': NivelExplicacao.SILENCIOSO,
-            'basic': NivelExplicacao.BASICO,
-            'detailed': NivelExplicacao.DETALHADO,
+            'silencioso': NivelExplicacao.SILENCIOSO,
+            'basico': NivelExplicacao.BASICO,
+            'detalhado': NivelExplicacao.DETALHADO,
             'debug': NivelExplicacao.DEBUG
         }
         config_ia.set_nivel_explicacao(nivel_map[explain])
@@ -423,7 +444,7 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
 @click.argument('query', required=False)
 @click.option('--query', '-q', 'query_flag', help='Query para seleção IA')
 @click.option('--output', '-o', help='Diretório de saída')
-@click.option('--explain', type=click.Choice(['basic', 'detailed', 'debug']), help='Nível de explicação da IA')
+@click.option('--explain', type=click.Choice(['silencioso', 'basico', 'detalhado', 'debug']), help='Nível de explicação da IA')
 @click.option('--dry-run', is_flag=True, help='Mostrar o que seria feito sem executar')
 @click.option('--interactive', '-i', is_flag=True, help='Modo interativo')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
