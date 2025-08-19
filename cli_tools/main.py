@@ -154,10 +154,83 @@ def cli(ctx, quiet):
             print("💡 Use 'cli-tools --help' para ver comandos disponíveis")
 
 @cli.command()
+@click.option('--dashboard', '-d', type=click.Choice(['a', 'b', 'c', 'd', 'table', 'panels', 'layout', 'live']), 
+              help='Tipo de dashboard: a/table=Tabela, b/panels=Painéis, c/layout=Layout, d/live=Tempo Real')
+@click.option('--legacy', is_flag=True, help='Usar interface antiga (compatibilidade)')
 @click.pass_context
-def status(ctx):
-    """📊 Mostrar status completo do sistema"""
+def status(ctx, dashboard, legacy):
+    """📊 Mostrar status completo do sistema
     
+    Dashboards disponíveis:
+    - a/table: Rich Table simples com informações de APIs
+    - b/panels: Rich Panel com seções organizadas por serviço  
+    - c/layout: Rich Layout com múltiplas colunas e gráficos
+    - d/live: Rich Live Dashboard com updates em tempo real
+    """
+    
+    # Se modo legacy ou quiet, usar interface antiga
+    if legacy or ctx.obj['quiet']:
+        _status_legacy(ctx)
+        return
+    
+    # Usar dashboards Rich avançados
+    from core.rich_dashboards_simple import rich_dashboards_simple
+    
+    # Se não especificou dashboard, mostrar menu de seleção
+    if not dashboard:
+        from rich.console import Console
+        from rich.prompt import Prompt
+        from rich.panel import Panel
+        from rich.text import Text
+        
+        console = Console()
+        
+        menu_text = """[bold magenta]🎯 CLI Tools - Seleção de Dashboard[/bold magenta]
+
+Escolha o tipo de dashboard que deseja visualizar:
+
+[bold cyan]a) table[/bold cyan]  - Rich Table simples com informações de APIs
+[bold cyan]b) panels[/bold cyan] - Rich Panel com seções organizadas por serviço  
+[bold cyan]c) layout[/bold cyan] - Rich Layout com múltiplas colunas e gráficos
+[bold cyan]d) live[/bold cyan]   - Rich Live Dashboard com updates em tempo real
+
+[blue]💡 Dica: Use --dashboard/-d para ir direto: cli-tools status -d a[/blue]"""
+        
+        console.print(Panel(menu_text, title="Dashboard Selection", border_style="magenta"))
+        
+        dashboard = Prompt.ask(
+            "\n[bold magenta]Selecione o dashboard[/bold magenta]",
+            choices=["a", "b", "c", "d", "table", "panels", "layout", "live"],
+            default="a"
+        )
+    
+    # Mapear aliases
+    dashboard_map = {
+        'a': 'table',
+        'b': 'panels', 
+        'c': 'layout',
+        'd': 'live',
+        'table': 'table',
+        'panels': 'panels',
+        'layout': 'layout', 
+        'live': 'live'
+    }
+    
+    dashboard_type = dashboard_map.get(dashboard, 'table')
+    
+    # Executar dashboard selecionado
+    if dashboard_type == 'table':
+        rich_dashboards_simple.dashboard_version_a_table()
+    elif dashboard_type == 'panels':
+        rich_dashboards_simple.dashboard_version_b_panels()
+    elif dashboard_type == 'layout':
+        rich_dashboards_simple.dashboard_version_c_layout()
+    elif dashboard_type == 'live':
+        rich_dashboards_simple.dashboard_version_d_live()
+
+
+def _status_legacy(ctx):
+    """Versão legacy do comando status para compatibilidade"""
     ui = InterfaceLimpa(ctx.obj['quiet'])
     
     if not ctx.obj['quiet']:
