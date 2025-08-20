@@ -16,6 +16,8 @@ Uso:
 Versão: 1.1.0 - Workspace Inteligente
 """
 
+import sys
+print(sys.path)
 import re
 import sys
 import click
