@@ -154,29 +154,20 @@ def cli(ctx, quiet):
             print("💡 Use 'cli-tools --help' para ver comandos disponíveis")
 
 @cli.command()
-@click.option('--legacy', is_flag=True, help='Usar interface antiga (compatibilidade)')
+@click.option('--simple', is_flag=True, help='Exibir em modo texto, sem interface gráfica.')
+@click.option('--live', is_flag=True, help='Exibir em modo live com atualizações em tempo real.')
 @click.pass_context
-def status(ctx, legacy):
-    """📊 Mostrar status completo do sistema"""
-    
-    # Se modo legacy ou quiet, usar interface antiga
-    if legacy or ctx.obj['quiet']:
-        _status_legacy(ctx)
-        return
-    
-    # Usar dashboard Rich simples (opção A)
-    from core.rich_dashboards_simple import RichDashboardsSimple
-    
-    # Sempre usar dashboard 'a' (table)
-    dashboard = 'a'
-    
-    try:
-        dashboard_obj = RichDashboardsSimple()
-        dashboard_obj.dashboard_version_a_table()
-    except Exception as e:
-        print(f"❌ Erro no dashboard: {e}")
-        print("🔄 Usando interface de fallback...")
-        _status_legacy(ctx)
+def status(ctx, simple, live):
+    """📊 Exibe o dashboard de status do sistema."""
+    if simple or ctx.obj['quiet']:
+        from core.rich_dashboards_simple import simple_dashboard
+        simple_dashboard.display()
+    else:
+        from core.rich_dashboards import modern_dashboard
+        if live:
+            modern_dashboard.display_live()
+        else:
+            modern_dashboard.display()
 
 
 def _status_legacy(ctx):
