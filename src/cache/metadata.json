@@ -96,5 +96,12 @@
     "size": 32315,
     "mtime": 1755646971.1241918,
     "timestamp": "2025-08-19T20:42:51.127267"
+  },
+  "522729ef644b": {
+    "url": "https://images.pexels.com/photos/1366942/pexels-photo-1366942.jpeg?auto=compress&cs=tinysrgb&h=350",
+    "arquivo": "/home/desk/cli-tools/materials/imagens/test_1_1366942.webp",
+    "size": 16463,
+    "mtime": 1755652300.5025804,
+    "timestamp": "2025-08-19T22:11:40.505285"
   }
 }

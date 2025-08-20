@@ -802,6 +802,59 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
     
     subprocess.run(cmd)
 
+# Comando para interface moderna
+@cli.command()
+def ui():
+    """🎨 Interface moderna interativa"""
+    try:
+        from ui.gemini_fixed import run_cli_tools_interface
+        import subprocess
+        import sys
+        
+        # Executar interface CLI Tools
+        result = run_cli_tools_interface()
+        
+        # Se o usuário selecionou uma ação, executar o comando correspondente
+        if result:
+            if result == 'search':
+                query = click.prompt("🔍 Digite sua busca", default="office modern")
+                count = click.prompt("📊 Quantas imagens", default=5, type=int)
+                subprocess.run([sys.executable, "-m", "src.main", "search", query, "-n", str(count)])
+            
+            elif result == 'figma':
+                key = click.prompt("🎨 Digite a chave do arquivo Figma")
+                subprocess.run([sys.executable, "-m", "src.main", "figma", key])
+            
+            elif result == 'repo':
+                repo = click.prompt("📦 Digite o repositório (user/repo)")
+                query = click.prompt("🔍 Query para seleção IA", default="")
+                if query:
+                    subprocess.run([sys.executable, "-m", "src.main", "repo", repo, "-q", query])
+                else:
+                    subprocess.run([sys.executable, "-m", "src.main", "repo", repo])
+            
+            elif result == 'status':
+                subprocess.run([sys.executable, "-m", "src.main", "status"])
+            
+            elif result == 'config':
+                subprocess.run([sys.executable, "-m", "src.main", "config"])
+            
+            elif result == 'costs':
+                subprocess.run([sys.executable, "-m", "src.main", "costs"])
+            
+            elif result == 'setup':
+                subprocess.run([sys.executable, "-m", "src.main", "setup"])
+            
+            elif result == 'help':
+                subprocess.run([sys.executable, "-m", "src.main", "help"])
+        
+    except ImportError:
+        ui = InterfaceLimpa()
+        ui.print_erro("Interface moderna não disponível. Instale: pip install textual")
+    except KeyboardInterrupt:
+        ui = InterfaceLimpa()
+        ui.print_sucesso("Interface fechada")
+
 # Comandos de ferramentas individuais (para compatibilidade)
 @cli.group()
 def tools():
@@ -843,9 +896,9 @@ if __name__ == "__main__":
         cli()
     except KeyboardInterrupt:
         ui = InterfaceLimpa()
-        ui.mostrar_erro("Operação cancelada pelo usuário")
+        ui.print_erro("Operação cancelada pelo usuário")
         sys.exit(1)
     except Exception as e:
         ui = InterfaceLimpa()
-        ui.mostrar_erro(f"Erro inesperado: {e}")
+        ui.print_erro(f"Erro inesperado: {e}")
         sys.exit(1)

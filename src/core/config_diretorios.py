@@ -219,6 +219,46 @@ cli-tools config --workspace /novo/local/materials
             'figma_exists': self.figma_dir.exists(),
             'repos_exists': self.repos_dir.exists()
         }
+    
+    def obter_estatisticas_workspace(self):
+        """Obter estatísticas detalhadas do workspace"""
+        def _get_dir_stats(dir_path):
+            """Obter estatísticas de um diretório"""
+            if not dir_path.exists():
+                return {'files': 0, 'size_mb': 0.0}
+            
+            total_files = 0
+            total_size = 0
+            
+            try:
+                for item in dir_path.rglob('*'):
+                    if item.is_file():
+                        total_files += 1
+                        total_size += item.stat().st_size
+            except (PermissionError, OSError):
+                pass
+            
+            return {
+                'files': total_files,
+                'size_mb': total_size / (1024 * 1024)
+            }
+        
+        # Obter estatísticas de cada diretório
+        directories = {
+            'imagens': _get_dir_stats(self.imagens_dir),
+            'figma': _get_dir_stats(self.figma_dir),
+            'repos': _get_dir_stats(self.repos_dir)
+        }
+        
+        # Calcular totais
+        total_files = sum(stats['files'] for stats in directories.values())
+        total_size_mb = sum(stats['size_mb'] for stats in directories.values())
+        
+        return {
+            'directories': directories,
+            'total_files': total_files,
+            'total_size_mb': total_size_mb
+        }
 
 # Instância global
 config_diretorios = ConfigDiretorios()
