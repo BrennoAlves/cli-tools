@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .visuals import console, print_header, print_info, print_error
-from ..menu_app.interactive_menu import show_interactive_menu
+from src.menu_app.interactive_menu import show_interactive_menu
 from .rich_dashboards import modern_dashboard
 
 class NavegadorCLI:

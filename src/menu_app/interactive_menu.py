@@ -7,7 +7,7 @@ from textual.widgets import Header, Footer, Static, Label
 from textual.containers import Container, Horizontal, Vertical
 from textual.binding import Binding
 
-from ..core.visuals import DRACULA_THEME
+from src.core.visuals import DRACULA_THEME
 
 # CSS para o menu, inspirado no tema Dracula
 MENU_CSS = f"""
