@@ -154,79 +154,29 @@ def cli(ctx, quiet):
             print("💡 Use 'cli-tools --help' para ver comandos disponíveis")
 
 @cli.command()
-@click.option('--dashboard', '-d', type=click.Choice(['a', 'b', 'c', 'd', 'table', 'panels', 'layout', 'live']), 
-              help='Tipo de dashboard: a/table=Tabela, b/panels=Painéis, c/layout=Layout, d/live=Tempo Real')
 @click.option('--legacy', is_flag=True, help='Usar interface antiga (compatibilidade)')
 @click.pass_context
-def status(ctx, dashboard, legacy):
-    """📊 Mostrar status completo do sistema
-    
-    Dashboards disponíveis:
-    - a/table: Rich Table simples com informações de APIs
-    - b/panels: Rich Panel com seções organizadas por serviço  
-    - c/layout: Rich Layout com múltiplas colunas e gráficos
-    - d/live: Rich Live Dashboard com updates em tempo real
-    """
+def status(ctx, legacy):
+    """📊 Mostrar status completo do sistema"""
     
     # Se modo legacy ou quiet, usar interface antiga
     if legacy or ctx.obj['quiet']:
         _status_legacy(ctx)
         return
     
-    # Usar dashboards Rich avançados
-    from core.rich_dashboards_simple import rich_dashboards_simple
+    # Usar dashboard Rich simples (opção A)
+    from core.rich_dashboards_simple import RichDashboardsSimple
     
-    # Se não especificou dashboard, mostrar menu de seleção
-    if not dashboard:
-        from rich.console import Console
-        from rich.prompt import Prompt
-        from rich.panel import Panel
-        from rich.text import Text
-        
-        console = Console()
-        
-        menu_text = """[bold magenta]🎯 CLI Tools - Seleção de Dashboard[/bold magenta]
-
-Escolha o tipo de dashboard que deseja visualizar:
-
-[bold cyan]a) table[/bold cyan]  - Rich Table simples com informações de APIs
-[bold cyan]b) panels[/bold cyan] - Rich Panel com seções organizadas por serviço  
-[bold cyan]c) layout[/bold cyan] - Rich Layout com múltiplas colunas e gráficos
-[bold cyan]d) live[/bold cyan]   - Rich Live Dashboard com updates em tempo real
-
-[blue]💡 Dica: Use --dashboard/-d para ir direto: cli-tools status -d a[/blue]"""
-        
-        console.print(Panel(menu_text, title="Dashboard Selection", border_style="magenta"))
-        
-        dashboard = Prompt.ask(
-            "\n[bold magenta]Selecione o dashboard[/bold magenta]",
-            choices=["a", "b", "c", "d", "table", "panels", "layout", "live"],
-            default="a"
-        )
+    # Sempre usar dashboard 'a' (table)
+    dashboard = 'a'
     
-    # Mapear aliases
-    dashboard_map = {
-        'a': 'table',
-        'b': 'panels', 
-        'c': 'layout',
-        'd': 'live',
-        'table': 'table',
-        'panels': 'panels',
-        'layout': 'layout', 
-        'live': 'live'
-    }
-    
-    dashboard_type = dashboard_map.get(dashboard, 'table')
-    
-    # Executar dashboard selecionado
-    if dashboard_type == 'table':
-        rich_dashboards_simple.dashboard_version_a_table()
-    elif dashboard_type == 'panels':
-        rich_dashboards_simple.dashboard_version_b_panels()
-    elif dashboard_type == 'layout':
-        rich_dashboards_simple.dashboard_version_c_layout()
-    elif dashboard_type == 'live':
-        rich_dashboards_simple.dashboard_version_d_live()
+    try:
+        dashboard_obj = RichDashboardsSimple()
+        dashboard_obj.dashboard_version_a_table()
+    except Exception as e:
+        print(f"❌ Erro no dashboard: {e}")
+        print("🔄 Usando interface de fallback...")
+        _status_legacy(ctx)
 
 
 def _status_legacy(ctx):
@@ -303,41 +253,148 @@ def _status_legacy(ctx):
         ui.mostrar_ajuda(comandos)
 
 @cli.command()
-@click.option('--demo', is_flag=True, help='Executar em modo demo (sem APIs reais)')
-@click.pass_context
-def ui(ctx, demo):
-    """🖥️ Abrir interface Textual interativa
-    
-    Abre uma interface TUI completa com:
-    - Dashboard de status interativo
-    - Busca de imagens com formulário
-    - Configuração visual de APIs
-    - Navegação por teclado e mouse
-    """
-    
-    try:
-        from menu_app.interactive_menu import InteractiveMenu
-        
-        if demo:
-            # Modo demo - simular dados
-            import os
-            os.environ['CLI_TOOLS_DEMO_MODE'] = '1'
-        
-        app = InteractiveMenu()
-        app.run()
-        
-    except ImportError as e:
-        print(f"❌ Erro ao importar interface: {e}")
-        print("💡 Instale as dependências: pip install textual rich")
-    except Exception as e:
-        print(f"❌ Erro na interface: {e}")
-
-@cli.command()
 @click.pass_context
 def setup(ctx):
     """🔧 Configurar sistema inicial"""
-    from core.controle_uso import controlador_uso
-    controlador_uso.setup_inicial()
+    from rich.console import Console
+    from rich.prompt import Prompt, Confirm
+    from pathlib import Path
+    import requests
+    
+    console = Console()
+    console.print("\n[bold green]🔧 Configuração Inicial do CLI Tools[/bold green]")
+    console.print("Vamos configurar suas chaves de API para usar todas as funcionalidades.\n")
+    
+    def salvar_chave_env(nome_var, valor):
+        """Salva chave no arquivo .env"""
+        # Determinar arquivo .env (projeto atual ou global)
+        env_paths = [
+            Path.cwd() / '.env',
+            Path.home() / '.local/share/cli-tools/.env'
+        ]
+        
+        env_file = None
+        for path in env_paths:
+            if path.exists():
+                env_file = path
+                break
+        
+        if not env_file:
+            env_file = env_paths[0]  # Criar no diretório atual
+        
+        # Ler arquivo existente
+        lines = []
+        if env_file.exists():
+            with open(env_file, 'r') as f:
+                lines = f.readlines()
+        
+        # Atualizar ou adicionar variável
+        found = False
+        for i, line in enumerate(lines):
+            if line.startswith(f'{nome_var}='):
+                lines[i] = f'{nome_var}={valor}\n'
+                found = True
+                break
+        
+        if not found:
+            lines.append(f'{nome_var}={valor}\n')
+        
+        # Salvar arquivo
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(env_file, 'w') as f:
+            f.writelines(lines)
+    
+    def configurar_pexels():
+        """Configurar API do Pexels"""
+        if not Confirm.ask("\n🖼️ Configurar API do Pexels (busca de imagens)?", default=True):
+            return
+        
+        console.print("\n[cyan]📝 Para obter sua chave do Pexels:[/cyan]")
+        console.print("1. Acesse: https://www.pexels.com/api/")
+        console.print("2. Crie uma conta gratuita")
+        console.print("3. Copie sua API Key")
+        
+        while True:
+            chave = Prompt.ask("\n[yellow]Cole sua chave do Pexels (ou 'pular' para pular)[/yellow]")
+            
+            if chave.lower() == 'pular':
+                console.print("[yellow]⏭️ Pexels pulado[/yellow]")
+                break
+            
+            # Validar chave testando API
+            try:
+                response = requests.get(
+                    "https://api.pexels.com/v1/search?query=test&per_page=1",
+                    headers={"Authorization": chave},
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    salvar_chave_env('PEXELS_API_KEY', chave)
+                    console.print("[green]✅ Chave do Pexels validada e salva![/green]")
+                    break
+                else:
+                    console.print("[red]❌ Chave inválida. Tente novamente.[/red]")
+            except:
+                console.print("[red]❌ Erro ao validar chave. Verifique sua conexão.[/red]")
+    
+    def configurar_figma():
+        """Configurar API do Figma"""
+        if not Confirm.ask("\n🎨 Configurar API do Figma (extração de designs)?", default=True):
+            return
+        
+        console.print("\n[cyan]📝 Para obter seu token do Figma:[/cyan]")
+        console.print("1. Acesse: https://www.figma.com/developers/api")
+        console.print("2. Faça login na sua conta")
+        console.print("3. Gere um Personal Access Token")
+        
+        while True:
+            token = Prompt.ask("\n[yellow]Cole seu token do Figma (ou 'pular' para pular)[/yellow]")
+            
+            if token.lower() == 'pular':
+                console.print("[yellow]⏭️ Figma pulado[/yellow]")
+                break
+            
+            # Validar token (teste simples de formato)
+            if len(token) > 20 and token.startswith('figd_'):
+                salvar_chave_env('FIGMA_API_TOKEN', token)
+                console.print("[green]✅ Token do Figma salvo![/green]")
+                break
+            else:
+                console.print("[red]❌ Token inválido. Deve começar com 'figd_'.[/red]")
+    
+    def configurar_gemini():
+        """Configurar API do Gemini"""
+        if not Confirm.ask("\n🤖 Configurar API do Google Gemini (IA para análise)?", default=True):
+            return
+        
+        console.print("\n[cyan]📝 Para obter sua chave do Gemini:[/cyan]")
+        console.print("1. Acesse: https://makersuite.google.com/app/apikey")
+        console.print("2. Faça login com sua conta Google")
+        console.print("3. Crie uma nova API Key")
+        
+        while True:
+            chave = Prompt.ask("\n[yellow]Cole sua chave do Gemini (ou 'pular' para pular)[/yellow]")
+            
+            if chave.lower() == 'pular':
+                console.print("[yellow]⏭️ Gemini pulado[/yellow]")
+                break
+            
+            # Validar chave (teste simples de formato)
+            if len(chave) > 30 and chave.startswith('AIza'):
+                salvar_chave_env('GEMINI_API_KEY', chave)
+                console.print("[green]✅ Chave do Gemini salva![/green]")
+                break
+            else:
+                console.print("[red]❌ Chave inválida. Deve começar com 'AIza'.[/red]")
+    
+    # Executar configurações
+    configurar_pexels()
+    configurar_figma()
+    configurar_gemini()
+    
+    console.print("\n[bold green]✅ Configuração inicial concluída![/bold green]")
+    console.print("🎉 Sistema pronto para uso!")
+    console.print("💡 Use 'cli-tools help' para ver comandos disponíveis")
 
 @cli.command()
 @click.option('--workspace', help='Configurar diretório principal de trabalho')
@@ -426,54 +483,90 @@ def config(ctx, workspace, imagens, figma, repos, show_dirs):
     print(f"📁 Arquivo de configuração: {arquivo_env}")
 
 @cli.command(name='ai-config')
-@click.option('--interactive', '-i', is_flag=True, help='Configuração interativa')
 @click.option('--show', is_flag=True, help='Mostrar configuração atual')
-@click.option('--explain', type=click.Choice(['silencioso', 'basico', 'detalhado', 'debug']), help='Definir nível de explicação')
-@click.option('--modelo', type=click.Choice(['conservador', 'equilibrado', 'yolo']), help='Aplicar modelo pré-configurado')
 @click.pass_context
-def ai_config(ctx, interactive, show, explain, modelo):
+def ai_config(ctx, show):
     """🤖 Configurar comportamento da IA"""
+    from rich.console import Console
+    from rich.prompt import Prompt
+    from pathlib import Path
+    
+    console = Console()
+    
+    def salvar_config_ia(comportamento):
+        """Salva configuração da IA no .env"""
+        env_paths = [
+            Path.cwd() / '.env',
+            Path.home() / '.local/share/cli-tools/.env'
+        ]
+        
+        env_file = None
+        for path in env_paths:
+            if path.exists():
+                env_file = path
+                break
+        
+        if not env_file:
+            env_file = env_paths[0]
+        
+        # Ler arquivo existente
+        lines = []
+        if env_file.exists():
+            with open(env_file, 'r') as f:
+                lines = f.readlines()
+        
+        # Atualizar ou adicionar variável
+        found = False
+        for i, line in enumerate(lines):
+            if line.startswith('AI_BEHAVIOR='):
+                lines[i] = f'AI_BEHAVIOR={comportamento}\n'
+                found = True
+                break
+        
+        if not found:
+            lines.append(f'AI_BEHAVIOR={comportamento}\n')
+        
+        # Salvar arquivo
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(env_file, 'w') as f:
+            f.writelines(lines)
     
     if show:
-        config_ia.mostrar_config_atual()
-        return
-    
-    if modelo:
-        from core.config_ia import ModeloIA
-        modelo_map = {
-            'conservador': ModeloIA.CONSERVADOR,
-            'equilibrado': ModeloIA.EQUILIBRADO,
-            'yolo': ModeloIA.YOLO
-        }
-        config_ia.aplicar_modelo(modelo_map[modelo])
+        import os
+        comportamento = os.getenv('AI_BEHAVIOR', 'equilibrado')
+        console.print(f"\n[green]🤖 Comportamento atual da IA: {comportamento}[/green]")
         
-        modelo_desc = {
-            'conservador': '🛡️  Conservador - Máxima segurança e transparência',
-            'equilibrado': '⚖️  Equilibrado - Padrão balanceado',
-            'yolo': '🚀 YOLO - Rápido e direto'
+        opcoes = {
+            'silencioso': 'Execução silenciosa - apenas resultados',
+            'equilibrado': 'Equilibrado - informações essenciais (padrão)',
+            'declarativo': 'Declarativo - passo a passo detalhado'
         }
         
-        click.echo(f"✅ Modelo {modelo_desc[modelo]} aplicado!")
+        console.print(f"[dim]{opcoes.get(comportamento, 'Configuração personalizada')}[/dim]")
         return
     
-    if explain:
-        from core.config_ia import NivelExplicacao
-        nivel_map = {
-            'silencioso': NivelExplicacao.SILENCIOSO,
-            'basico': NivelExplicacao.BASICO,
-            'detalhado': NivelExplicacao.DETALHADO,
-            'debug': NivelExplicacao.DEBUG
-        }
-        config_ia.set_nivel_explicacao(nivel_map[explain])
-        click.echo(f"✅ Nível de explicação definido para: {explain}")
-        return
+    console.print("\n[bold green]🤖 Configuração do Comportamento da IA[/bold green]")
+    console.print("Configure como a IA deve se comportar nas ferramentas:\n")
     
-    if interactive:
-        config_ia.configuracao_interativa()
-        return
+    opcoes = {
+        'silencioso': 'Execução silenciosa - apenas resultados',
+        'equilibrado': 'Equilibrado - informações essenciais (padrão)',
+        'declarativo': 'Declarativo - passo a passo detalhado'
+    }
     
-    # Mostrar help se nenhuma opção foi passada
-    click.echo(ctx.get_help())
+    console.print("[cyan]Opções disponíveis:[/cyan]")
+    for key, desc in opcoes.items():
+        console.print(f"  • [yellow]{key}[/yellow]: {desc}")
+    
+    escolha = Prompt.ask(
+        "\n[yellow]Como a IA deve se comportar?[/yellow]",
+        choices=list(opcoes.keys()),
+        default="equilibrado"
+    )
+    
+    salvar_config_ia(escolha)
+    console.print(f"\n[green]✅ Comportamento da IA configurado para: {escolha}[/green]")
+    console.print(f"[dim]{opcoes[escolha]}[/dim]")
 
 @cli.command()
 @click.pass_context
@@ -576,14 +669,6 @@ def search(ctx, consulta, count, output, orientation, output_json):
         cmd.extend(["--format", "json"])
     
     subprocess.run(cmd)
-    
-    if orientation:
-        cmd.extend(["--orientation", orientation])
-    
-    if output_json:
-        cmd.extend(["--format", "json"])
-    
-    subprocess.run(cmd)
 
 @cli.command()
 @click.argument('chave_arquivo')
@@ -634,10 +719,12 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
 @click.option('--dry-run', is_flag=True, help='Mostrar o que seria feito sem executar')
 @click.option('--interactive', '-i', is_flag=True, help='Modo interativo')
 @click.option('--no-ai', is_flag=True, help='Baixar repositório completo sem IA')
+@click.option('--all', is_flag=True, help='Baixar repositório completo (mesmo com IA configurada)')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interactive, no_ai, output_json):
+def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interactive, no_ai, all, output_json):
     """📦 Baixar repositório com seleção IA"""
+    from core.config import ConfigAPI
     
     # Usar query da flag se não foi passada como argumento
     if not query and query_flag:
@@ -653,6 +740,10 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
         click.echo("❌ Query inválida. Use apenas texto simples sem caracteres especiais.")
         return
     
+    # Verificar se API do Gemini está configurada
+    config = ConfigAPI()
+    tem_gemini = config.tem_gemini()
+    
     # Processar flags de IA
     config_ia_atual = processar_flags_ia(ctx, explain, dry_run, interactive)
     
@@ -660,15 +751,32 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
     output_path = sanitizar_caminho(output, 'repos')
     
     # Determinar modo de operação
-    if no_ai:
+    if all:
+        # Forçar download completo
+        modo = "clone"
+        if not ctx.obj['quiet']:
+            click.echo("🔄 Modo --all: Baixando repositório completo...")
+    elif no_ai:
         # Modo sem IA - sempre clone completo
         modo = "clone"
+        if not ctx.obj['quiet']:
+            click.echo("🔄 Modo --no-ai: Baixando repositório completo...")
+    elif not tem_gemini:
+        # FALLBACK AUTOMÁTICO: Sem API configurada = download completo
+        modo = "clone"
+        if not ctx.obj['quiet']:
+            click.echo("⚠️  API do Gemini não configurada - baixando repositório completo")
+            click.echo("💡 Configure com: cli-tools setup")
     elif query:
         # Modo com IA - seleção inteligente
         modo = "smart"
+        if not ctx.obj['quiet']:
+            click.echo("🤖 Usando IA para seleção inteligente...")
     else:
         # Modo padrão - clone completo
         modo = "clone"
+        if not ctx.obj['quiet']:
+            click.echo("🔄 Baixando repositório completo...")
     
     cmd = [
         sys.executable,
@@ -677,8 +785,8 @@ def repo(ctx, repositorio, query, query_flag, output, explain, dry_run, interact
         repositorio
     ]
     
-    # Adicionar query apenas se não for --no-ai
-    if query and not no_ai:
+    # Adicionar query apenas se for modo smart
+    if query and modo == "smart":
         cmd.append(query)
     
     if ctx.obj['quiet']:

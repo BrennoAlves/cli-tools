@@ -13,6 +13,7 @@ import sys
 import json
 import requests
 import click
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
@@ -20,6 +21,7 @@ from typing import List, Dict
 # Adicionar lib ao path
 sys.path.append(str(Path(__file__).parent.parent))
 from core.config import ConfigAPI, validar_chaves_api
+from core.config_diretorios import ConfigDiretorios
 from core.interface import InterfaceLimpa
 
 class FerramentaBuscaImagens:
@@ -33,17 +35,82 @@ class FerramentaBuscaImagens:
         self.silencioso = silencioso
         self.ui = InterfaceLimpa(silencioso)
         
-        # Configurar diretórios
+        # Configurar diretórios usando ConfigDiretorios
+        config_dirs = ConfigDiretorios()
+        self.dir_imagens = config_dirs.imagens_dir
         self.dir_ferramenta = Path(__file__).parent.parent
         self.dir_cache = self.dir_ferramenta / "cache"
         self.dir_logs = self.dir_ferramenta / "logs"
         
+        # Criar diretórios necessários
+        self.dir_imagens.mkdir(parents=True, exist_ok=True)
         self.dir_cache.mkdir(exist_ok=True)
         self.dir_logs.mkdir(exist_ok=True)
+        
+        # Cache de metadados
+        self.cache_metadata = self.dir_cache / "metadata.json"
+        self._carregar_cache_metadata()
         
         if not self.chave_api:
             self.ui.mostrar_erro("Chave da API do Pexels não configurada")
             sys.exit(1)
+    
+    def _carregar_cache_metadata(self):
+        """Carregar cache de metadados"""
+        try:
+            if self.cache_metadata.exists():
+                with open(self.cache_metadata, 'r', encoding='utf-8') as f:
+                    self.metadata_cache = json.load(f)
+            else:
+                self.metadata_cache = {}
+        except (json.JSONDecodeError, FileNotFoundError):
+            self.metadata_cache = {}
+    
+    def _salvar_cache_metadata(self):
+        """Salvar cache de metadados"""
+        try:
+            with open(self.cache_metadata, 'w', encoding='utf-8') as f:
+                json.dump(self.metadata_cache, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.log(f"Erro ao salvar cache: {e}", "ERROR")
+    
+    def _gerar_hash_url(self, url: str) -> str:
+        """Gerar hash único para URL"""
+        return hashlib.md5(url.encode()).hexdigest()[:12]
+    
+    def _verificar_cache(self, url: str, caminho_arquivo: Path) -> bool:
+        """Verificar se arquivo está em cache e é válido"""
+        if not caminho_arquivo.exists():
+            return False
+        
+        url_hash = self._gerar_hash_url(url)
+        
+        # Verificar metadados
+        if url_hash in self.metadata_cache:
+            metadata = self.metadata_cache[url_hash]
+            arquivo_stat = caminho_arquivo.stat()
+            
+            # Verificar se o arquivo não foi modificado
+            if (arquivo_stat.st_size == metadata.get('size', 0) and 
+                arquivo_stat.st_mtime == metadata.get('mtime', 0)):
+                return True
+        
+        return False
+    
+    def _atualizar_cache(self, url: str, caminho_arquivo: Path):
+        """Atualizar cache com informações do arquivo"""
+        url_hash = self._gerar_hash_url(url)
+        arquivo_stat = caminho_arquivo.stat()
+        
+        self.metadata_cache[url_hash] = {
+            'url': url,
+            'arquivo': str(caminho_arquivo),
+            'size': arquivo_stat.st_size,
+            'mtime': arquivo_stat.st_mtime,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        self._salvar_cache_metadata()
     
     def log(self, mensagem: str, nivel: str = "INFO"):
         """Registrar atividade"""
@@ -123,7 +190,7 @@ class FerramentaBuscaImagens:
             url = foto["src"]["medium"]
             consulta_segura = "".join(c for c in consulta if c.isalnum() or c in (' ', '-', '_')).rstrip()
             consulta_segura = consulta_segura.replace(' ', '_')
-            nome_arquivo = f"{consulta_segura}_{i}_{foto['id']}.jpg"
+            nome_arquivo = f"{consulta_segura}_{i}_{foto['id']}.webp"
             
             caminho_arquivo = self._baixar_imagem_unica(url, nome_arquivo, dir_saida)
             if caminho_arquivo:
@@ -145,19 +212,19 @@ class FerramentaBuscaImagens:
         # Sanitizar nome do arquivo
         nome_arquivo = "".join(c for c in nome_arquivo if c.isalnum() or c in '._-')
         if not nome_arquivo or len(nome_arquivo) < 3:
-            nome_arquivo = f"imagem_{hash(url) % 10000}.jpg"
+            nome_arquivo = f"imagem_{hash(url) % 10000}.webp"
         
         if dir_saida:
             caminho_saida = Path(dir_saida)
         else:
-            caminho_saida = self.dir_cache
+            caminho_saida = self.dir_imagens
             
         caminho_saida.mkdir(parents=True, exist_ok=True)
         caminho_arquivo = caminho_saida / nome_arquivo
         
-        # Verificar se existe
-        if caminho_arquivo.exists():
-            self.log(f"Arquivo já existe: {caminho_arquivo}")
+        # Verificar cache inteligente
+        if self._verificar_cache(url, caminho_arquivo):
+            self.log(f"Arquivo encontrado no cache: {caminho_arquivo}")
             return str(caminho_arquivo)
         
         try:
@@ -177,6 +244,9 @@ class FerramentaBuscaImagens:
             
             with open(caminho_arquivo, "wb") as f:
                 f.write(response.content)
+                
+            # Atualizar cache
+            self._atualizar_cache(url, caminho_arquivo)
                 
             self.log(f"Baixado: {caminho_arquivo}")
             return str(caminho_arquivo)
@@ -298,21 +368,38 @@ def urls(ctx, consulta, count, orientation, size, color, quality):
 @click.option('--orientation', type=click.Choice(['landscape', 'portrait', 'square']), help='Orientação da imagem')
 @click.option('--size', type=click.Choice(['large', 'medium', 'small']), help='Tamanho da imagem')
 @click.option('--color', help='Filtro de cor')
+@click.option('--min-width', type=int, help='Largura mínima em pixels')
+@click.option('--min-height', type=int, help='Altura mínima em pixels')
+@click.option('--category', help='Categoria específica')
+@click.option('--locale', default='en-US', help='Localização para busca')
+@click.option('--per-page', type=int, default=15, help='Resultados por página')
+@click.option('--skip-cache', is_flag=True, help='Pular cache e baixar novamente')
 @click.pass_context
-def download(ctx, consulta, count, output, orientation, size, color):
+def download(ctx, consulta, count, output, orientation, size, color, min_width, min_height, category, locale, per_page, skip_cache):
     """Baixar imagens"""
     
     ferramenta = FerramentaBuscaImagens(silencioso=ctx.obj['quiet'])
     ui = InterfaceLimpa(ctx.obj['quiet'])
     
+    # Configurar skip cache se solicitado
+    if skip_cache:
+        ferramenta.metadata_cache = {}
+    
     if not ctx.obj['quiet']:
         ui.mostrar_cabecalho("Download de Imagens", f"Consulta: {consulta}")
     
-    # Preparar filtros
+    # Preparar filtros avançados
     filtros = {}
     if orientation: filtros['orientation'] = orientation
     if size: filtros['size'] = size
     if color: filtros['color'] = color
+    if min_width: filtros['min_width'] = min_width
+    if min_height: filtros['min_height'] = min_height
+    if category: filtros['category'] = category
+    if locale: filtros['locale'] = locale
+    
+    # Ajustar per_page baseado no count
+    filtros['per_page'] = min(per_page, count)
     
     # Baixar
     arquivos = ferramenta.baixar_imagens(consulta, quantidade=count, dir_saida=output, **filtros)
@@ -342,6 +429,68 @@ def status(ctx):
     }
     
     ui.mostrar_status_config(configs)
+
+@cli.command()
+@click.option('--all', 'limpar_tudo', is_flag=True, help='Limpar todo o cache')
+@click.option('--older-than', type=int, help='Limpar arquivos mais antigos que N dias')
+@click.pass_context
+def cache(ctx, limpar_tudo, older_than):
+    """Gerenciar cache de imagens"""
+    
+    ferramenta = FerramentaBuscaImagens(silencioso=ctx.obj['quiet'])
+    ui = InterfaceLimpa(ctx.obj['quiet'])
+    
+    if not ctx.obj['quiet']:
+        ui.mostrar_cabecalho("Gerenciamento de Cache", "Limpeza de arquivos")
+    
+    if limpar_tudo:
+        # Limpar todo o cache
+        try:
+            if ferramenta.cache_metadata.exists():
+                ferramenta.cache_metadata.unlink()
+            ferramenta.metadata_cache = {}
+            ui.mostrar_sucesso("Cache limpo completamente")
+        except Exception as e:
+            ui.mostrar_erro(f"Erro ao limpar cache: {e}")
+    
+    elif older_than:
+        # Limpar arquivos antigos
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.now() - timedelta(days=older_than)
+        
+        removidos = 0
+        for url_hash, metadata in list(ferramenta.metadata_cache.items()):
+            try:
+                timestamp = datetime.fromisoformat(metadata.get('timestamp', ''))
+                if timestamp < cutoff_date:
+                    arquivo = Path(metadata['arquivo'])
+                    if arquivo.exists():
+                        arquivo.unlink()
+                    del ferramenta.metadata_cache[url_hash]
+                    removidos += 1
+            except (ValueError, KeyError, FileNotFoundError):
+                # Remove entrada inválida
+                del ferramenta.metadata_cache[url_hash]
+                removidos += 1
+        
+        ferramenta._salvar_cache_metadata()
+        ui.mostrar_sucesso(f"Removidos {removidos} arquivos antigos")
+    
+    else:
+        # Mostrar estatísticas do cache
+        total_arquivos = len(ferramenta.metadata_cache)
+        tamanho_total = 0
+        
+        for metadata in ferramenta.metadata_cache.values():
+            tamanho_total += metadata.get('size', 0)
+        
+        tamanho_mb = tamanho_total / (1024 * 1024)
+        
+        if not ctx.obj['quiet']:
+            print(f"📊 Cache Statistics:")
+            print(f"  Arquivos: {total_arquivos}")
+            print(f"  Tamanho: {tamanho_mb:.2f} MB")
+            print(f"  Localização: {ferramenta.cache_metadata}")
 
 if __name__ == "__main__":
     try:

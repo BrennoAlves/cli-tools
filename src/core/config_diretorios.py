@@ -20,10 +20,17 @@ class ConfigDiretorios:
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    self.workspace_dir = Path(config.get('workspace_dir', self._dir_padrao()))
-                    self.imagens_dir = Path(config.get('imagens_dir', self.workspace_dir / 'imagens'))
-                    self.figma_dir = Path(config.get('figma_dir', self.workspace_dir / 'figma'))
-                    self.repos_dir = Path(config.get('repos_dir', self.workspace_dir / 'repos'))
+                    workspace_salvo = Path(config.get('workspace_dir', self._dir_padrao()))
+                    workspace_atual = self._dir_padrao()
+                    
+                    # Se o workspace mudou, reconfigurar
+                    if workspace_salvo != workspace_atual:
+                        self._reconfigurar(workspace_atual)
+                    else:
+                        self.workspace_dir = workspace_salvo
+                        self.imagens_dir = Path(config.get('imagens_dir', self.workspace_dir / 'imagens'))
+                        self.figma_dir = Path(config.get('figma_dir', self.workspace_dir / 'figma'))
+                        self.repos_dir = Path(config.get('repos_dir', self.workspace_dir / 'repos'))
             except (json.JSONDecodeError, KeyError):
                 self._config_padrao()
         else:
@@ -31,21 +38,52 @@ class ConfigDiretorios:
     
     def _dir_padrao(self):
         """Diretório padrão baseado no diretório atual ou home"""
-        # Se estamos em um projeto (tem .git), usar ./materials
+        # Verificar se estamos executando de dentro do projeto cli-tools
         cwd = Path.cwd()
-        if (cwd / '.git').exists():
+        
+        # Se estamos no diretório cli-tools ou subdiretório
+        if 'cli-tools' in str(cwd) and (cwd / '.git').exists():
             return cwd / 'materials'
+        
+        # Procurar por .git subindo na hierarquia (até 3 níveis)
+        current = cwd
+        for _ in range(3):
+            if (current / '.git').exists():
+                return current / 'materials'
+            if current.parent == current:  # Chegou na raiz
+                break
+            current = current.parent
         
         # Senão, usar ~/materials
         return Path.home() / 'materials'
     
     def _config_padrao(self):
         """Configuração padrão de diretórios"""
-        self.workspace_dir = self._dir_padrao()
+        novo_workspace = self._dir_padrao()
+        
+        # Se o workspace mudou, reconfigurar
+        if hasattr(self, 'workspace_dir') and self.workspace_dir != novo_workspace:
+            self._reconfigurar(novo_workspace)
+        else:
+            self.workspace_dir = novo_workspace
+            self.imagens_dir = self.workspace_dir / 'imagens'
+            self.figma_dir = self.workspace_dir / 'figma'
+            self.repos_dir = self.workspace_dir / 'repos'
+            self._salvar_config()
+    
+    def _reconfigurar(self, novo_workspace):
+        """Reconfigurar diretórios quando o workspace muda"""
+        self.workspace_dir = novo_workspace
         self.imagens_dir = self.workspace_dir / 'imagens'
         self.figma_dir = self.workspace_dir / 'figma'
         self.repos_dir = self.workspace_dir / 'repos'
         self._salvar_config()
+        
+        # Criar diretórios se não existirem
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
+        self.imagens_dir.mkdir(parents=True, exist_ok=True)
+        self.figma_dir.mkdir(parents=True, exist_ok=True)
+        self.repos_dir.mkdir(parents=True, exist_ok=True)
     
     def _salvar_config(self):
         """Salvar configuração de diretórios"""

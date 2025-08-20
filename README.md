@@ -153,15 +153,34 @@ cli-tools status --json | jq '.apis.pexels.status'
 ## 🏗️ Arquitetura
 
 ```
-cli-tools/
-├── src/                    # Código fonte
-│   ├── main.py            # Entry point
-│   ├── menu_app/          # Interface TUI
-│   ├── core/              # APIs e lógica
-│   └── tools/             # Utilitários
-├── materials/             # Workspace
-├── .amazonq/docs/         # Documentação dev
-└── install.sh             # Instalação
+cli-tools/                  # 📁 Repositório principal
+├── src/                    # 🐍 Código fonte Python
+│   ├── __init__.py        # 📦 Inicialização do pacote
+│   ├── main.py            # 🚀 Entry point principal
+│   ├── menu_app/          # 🎮 Interface TUI interativa
+│   │   └── interactive_menu.py
+│   ├── core/              # ⚙️ Lógica de negócio e APIs
+│   │   ├── config.py      # ⚙️ Configuração geral
+│   │   ├── config_ia.py   # 🤖 Configuração IA/Gemini
+│   │   ├── config_diretorios.py # 📁 Gestão de diretórios
+│   │   ├── controle_uso.py # 📊 Controle de uso das APIs
+│   │   ├── interface.py   # 🖥️ Interface base
+│   │   ├── navegacao_cli.py # 🧭 Navegação CLI
+│   │   ├── rich_dashboards.py # 📊 Dashboards Rich completos
+│   │   └── rich_dashboards_simple.py # 📊 Dashboards simplificados
+│   └── tools/             # 🛠️ Ferramentas específicas
+│       ├── buscar-imagens.py # 🔍 Busca de imagens (Pexels)
+│       ├── extrator-figma.py # 🎨 Extração Figma
+│       └── baixar-repo.py    # 📦 Download de repositórios
+├── materials/             # 📁 Workspace de arquivos
+│   ├── imagens/          # 🖼️ Imagens baixadas
+│   ├── figma/            # 🎨 Designs do Figma
+│   └── repos/            # 📦 Repositórios clonados
+├── .amazonq/docs/         # 📚 Documentação de desenvolvimento
+├── .env                   # 🔑 Configuração local
+├── README.md             # 📖 Documentação pública
+├── requirements.txt      # 📦 Dependências Python
+└── install.sh            # 🚀 Script de instalação
 ```
 
 ## 🔧 Desenvolvimento

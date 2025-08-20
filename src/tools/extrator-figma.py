@@ -381,7 +381,7 @@ def info(ctx, chave_arquivo, formato_saida):
 
 @cli.command()
 @click.argument('chave_arquivo')
-@click.option('--format', type=click.Choice(['png', 'jpg', 'svg', 'pdf']), default='png', help='Formato da imagem')
+@click.option('--format', type=click.Choice(['png', 'webp', 'jpg', 'svg', 'pdf']), default='png', help='Formato da imagem')
 @click.option('--scale', type=float, default=1.0, help='Escala da imagem (0.01 a 4.0)')
 @click.option('--output', '-o', help='Diretório de saída')
 @click.option('--nodes', help='IDs específicos dos nós (separados por vírgula)')
