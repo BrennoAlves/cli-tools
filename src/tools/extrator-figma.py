@@ -98,7 +98,8 @@ class ExtratorFigma:
     
     def baixar_imagens(self, chave_arquivo: str, formato: str = "png", 
                       escala: float = 1.0, dir_saida: str = None,
-                      ids_nos: List[str] = None, max_imagens: int = 10) -> List[Dict]:
+                      ids_nos: List[str] = None, max_imagens: int = 10,
+                      modo: str = 'all') -> List[Dict]:
         """Baixar imagens do arquivo do Figma"""
         
         # Obter informações do arquivo
@@ -109,22 +110,33 @@ class ExtratorFigma:
         
         nome_arquivo = info_arquivo.get("name", "arquivo_figma").replace(" ", "_")
         
-        # Se não especificou nós, pegar frames principais
+        # Se não especificou nós, pegar conforme modo
         if not ids_nos:
             if not self.silencioso:
                 self.ui.mostrar_status("Analisando estrutura do arquivo...")
             
             info_nos = self._extrair_info_nos(info_arquivo)
+            tipos_base = ["FRAME", "COMPONENT", "COMPONENT_SET"]
+            if modo == 'components':
+                tipos_filtro = ["COMPONENT", "COMPONENT_SET"]
+            else:
+                tipos_filtro = tipos_base
             ids_nos = [
                 no["id"] for no in info_nos 
-                if no["tipo"] in ["FRAME", "COMPONENT", "COMPONENT_SET"] 
+                if no["tipo"] in tipos_filtro
                 and no.get("pai") == ""
                 and no.get("visivel", True)
             ][:max_imagens]
-        
+
         if not ids_nos:
-            self.ui.mostrar_erro("Nenhum nó baixável encontrado")
-            return []
+            if modo == 'css':
+                # Geração de CSS básica
+                caminho_css = self._exportar_css_basico(info_arquivo, dir_saida)
+                return ([{"caminho": caminho_css, "nome": Path(caminho_css).name, "tamanho": f"{Path(caminho_css).stat().st_size/1024:.1f} KB"}]
+                        if caminho_css else [])
+            else:
+                self.ui.mostrar_erro("Nenhum nó baixável encontrado")
+                return []
         
         # Obter URLs das imagens
         if not self.silencioso:
@@ -186,6 +198,30 @@ class ExtratorFigma:
                 time.sleep(0.2)  # Rate limiting
         
         return arquivos_baixados
+
+    def _exportar_css_basico(self, dados_arquivo: Dict, dir_saida: str | None) -> Optional[str]:
+        """Gera um CSS básico com placeholders a partir de estilos/textos do arquivo.
+        Obs.: É um ponto de partida; Figma API não retorna CSS direto.
+        """
+        try:
+            nome = dados_arquivo.get('name', 'figma').replace(' ', '_')
+            saida = Path(dir_saida) if dir_saida else self.dir_exportacoes
+            saida.mkdir(parents=True, exist_ok=True)
+            css_path = saida / f"{nome}.css"
+            estilos = dados_arquivo.get('styles', {}) or {}
+            linhas = ["/* CSS gerado automaticamente - base */", ":root {", "  --primary: #bd93f9;", "  --accent: #ff79c6;", "}", ""]
+            if estilos:
+                linhas.append("/* Estilos cadastrados no Figma (nomes) */")
+                for sid, s in estilos.items():
+                    linhas.append(f"/* {s.get('name','style')} ({s.get('styleType','')}) */")
+            linhas.append("")
+            linhas.append("/* Exemplos de classes (ajuste conforme necessidade) */")
+            linhas.append(".btn { padding: 8px 12px; border-radius: 6px; background: var(--primary); color: white; }")
+            linhas.append(".card { padding: 16px; border: 1px solid #44475a; border-radius: 8px; }")
+            css_path.write_text("\n".join(linhas), encoding='utf-8')
+            return str(css_path)
+        except Exception:
+            return None
     
     def _obter_urls_imagens(self, chave_arquivo: str, ids_nos: List[str], formato: str, escala: float) -> Dict:
         """Obter URLs das imagens da API do Figma"""
@@ -386,8 +422,9 @@ def info(ctx, chave_arquivo, formato_saida):
 @click.option('--output', '-o', help='Diretório de saída')
 @click.option('--nodes', help='IDs específicos dos nós (separados por vírgula)')
 @click.option('--max-images', type=int, default=5, help='Máximo de imagens automáticas')
+@click.option('--mode', type=click.Choice(['all','components','css']), default='all', help='Modo de extração')
 @click.pass_context
-def download(ctx, chave_arquivo, format, scale, output, nodes, max_images):
+def download(ctx, chave_arquivo, format, scale, output, nodes, max_images, mode):
     """Baixar imagens do arquivo do Figma"""
     
     extrator = ExtratorFigma(silencioso=ctx.obj['quiet'])
@@ -406,7 +443,8 @@ def download(ctx, chave_arquivo, format, scale, output, nodes, max_images):
         escala=scale,
         dir_saida=output,
         ids_nos=ids_nos,
-        max_imagens=max_images
+        max_imagens=max_images,
+        modo=mode
     )
     
     if arquivos:

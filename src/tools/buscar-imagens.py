@@ -363,7 +363,7 @@ def urls(ctx, consulta, count, orientation, size, color, quality):
 
 @cli.command()
 @click.argument('consulta')
-@click.option('--count', '-c', default=3, help='Número de imagens')
+@click.option('--count', '-c', default=1, help='Número de imagens (padrão: 1)')
 @click.option('--output', '-o', help='Diretório de saída')
 @click.option('--orientation', type=click.Choice(['landscape', 'portrait', 'square']), help='Orientação da imagem')
 @click.option('--size', type=click.Choice(['large', 'medium', 'small']), help='Tamanho da imagem')
@@ -398,10 +398,15 @@ def download(ctx, consulta, count, output, orientation, size, color, min_width, 
     if category: filtros['category'] = category
     if locale: filtros['locale'] = locale
     
-    # Ajustar per_page baseado no count
+    # Ajustar per_page baseado no count (puxamos só o necessário)
     filtros['per_page'] = min(per_page, count)
     
     # Baixar
+    # Calcular diretório de saída: se category informada ou não
+    if not output:
+        categoria = (category or consulta).strip()
+        categoria_segura = "".join(c for c in categoria if c.isalnum() or c in ('-', '_')).strip('_-') or 'geral'
+        output = str(ferramenta.dir_imagens / categoria_segura)
     arquivos = ferramenta.baixar_imagens(consulta, quantidade=count, dir_saida=output, **filtros)
     
     if arquivos:

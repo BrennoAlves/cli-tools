@@ -17,7 +17,6 @@ Versão: 1.1.0 - Workspace Inteligente
 """
 
 import sys
-print(sys.path)
 import re
 import sys
 import click
@@ -147,17 +146,83 @@ def cli(ctx, quiet):
     # Se nenhum comando foi especificado, abrir interface UI
     if ctx.invoked_subcommand is None:
         try:
-            from ui.gemini_fixed import run_cli_tools_interface
-            import subprocess
-            import sys
-            
-            # Executar interface e obter comando selecionado
-            selected_command = run_cli_tools_interface()
-            
-            # Se um comando foi selecionado, executá-lo
-            if selected_command:
-                subprocess.run([sys.executable, "-m", "src.main", selected_command])
-                
+            # Usar a nova UI (ui/app.py) e despachar ações selecionadas
+            from core.menu import run_cli_app
+            selection = run_cli_app()
+
+            # Despachar a ação escolhida no menu
+            if isinstance(selection, str):
+                escolha = selection.strip().lower()
+
+                # Comandos diretos (sem parâmetros)
+                if escolha == "status":
+                    ctx.invoke(status, simple=False, live=False)
+                elif escolha == "config":
+                    ctx.invoke(config, workspace=None, imagens=None, figma=None, repos=None, show_dirs=False)
+                elif escolha == "costs":
+                    ctx.invoke(costs)
+                elif escolha == "help":
+                    ctx.invoke(help)
+                elif escolha == "setup":
+                    ctx.invoke(setup)
+
+                # Comandos que precisam de parâmetros mínimos
+                elif escolha == "search":
+                    # Perguntar parâmetros essenciais
+                    consulta = click.prompt("Consulta para busca de imagens", type=str)
+                    count = click.prompt("Quantidade de imagens", type=int, default=1)
+                    orientation = click.prompt(
+                        "Orientação (landscape/portrait/square) [opcional]",
+                        default="",
+                        show_default=False,
+                    ).strip() or None
+                    # Delegar para o comando existente
+                    ctx.invoke(
+                        search,
+                        consulta=consulta,
+                        count=count,
+                        output=None,
+                        orientation=orientation,
+                        output_json=False,
+                    )
+
+                elif escolha == "figma":
+                    chave_arquivo = click.prompt("Chave do arquivo Figma", type=str)
+                    max_imgs = click.prompt("Máximo de imagens", type=int, default=3)
+                    formato = click.prompt("Formato (png/svg/jpg)", type=str, default="png")
+                    modo = click.prompt("Modo (all/components/css)", type=click.Choice(['all','components','css']), default='all')
+                    ctx.invoke(
+                        figma,
+                        chave_arquivo=chave_arquivo,
+                        max=max_imgs,
+                        format=formato,
+                        mode=modo,
+                        output=None,
+                        output_json=False,
+                    )
+
+                elif escolha == "repo":
+                    repositorio = click.prompt("Repositório (usuario/repositorio)", type=str)
+                    query = click.prompt("Query para IA [opcional]", default="", show_default=False).strip() or None
+                    baixar_tudo = click.confirm("Baixar repositório completo?", default=False)
+                    sem_ia = click.confirm("Forçar modo sem IA?", default=False)
+                    ctx.invoke(
+                        repo,
+                        repositorio=repositorio,
+                        query=query,
+                        query_flag=None,
+                        output=None,
+                        explain=None,
+                        dry_run=False,
+                        interactive=False,
+                        no_ai=sem_ia,
+                        all=baixar_tudo,
+                        output_json=False,
+                    )
+
+                else:
+                    click.echo(f"⚠️ Opção não reconhecida: {selection}")
+
         except KeyboardInterrupt:
             print("\n\n👋 Até logo!")
         except Exception as e:
@@ -629,7 +694,7 @@ def help(ctx):
 
 @cli.command()
 @click.argument('consulta')
-@click.option('--count', '-c', '--number', '-n', default=3, help='Número de imagens')
+@click.option('--count', '-c', '--number', '-n', default=1, help='Número de imagens (padrão: 1)')
 @click.option('--output', '-o', help='Diretório de saída (. = atual, default = configurado)')
 @click.option('--orientation', type=click.Choice(['landscape', 'portrait', 'square']), help='Orientação')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
@@ -676,10 +741,11 @@ def search(ctx, consulta, count, output, orientation, output_json):
 @click.argument('chave_arquivo')
 @click.option('--max', '--number', '-n', default=3, help='Máximo de imagens')
 @click.option('--format', '-f', default='png', help='Formato da imagem')
+@click.option('--mode', type=click.Choice(['all','components','css']), default='all', help='Modo de extração (all/components/css)')
 @click.option('--output', '-o', help='Diretório de saída (. = atual, default = configurado)')
 @click.option('--json', 'output_json', is_flag=True, help='Saída em formato JSON')
 @click.pass_context
-def figma(ctx, chave_arquivo, max, format, output, output_json):
+def figma(ctx, chave_arquivo, max, format, output, output_json, mode):
     """🎨 Extrair designs do Figma"""
     
     # Validar chave do arquivo
@@ -701,7 +767,8 @@ def figma(ctx, chave_arquivo, max, format, output, output_json):
         "download",
         chave_arquivo,
         "--max-images", str(max),
-        "--format", format
+        "--format", format,
+        "--mode", mode
     ]
     
     if ctx.obj['quiet']:

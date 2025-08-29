@@ -16,9 +16,12 @@ class ConfigDiretorios:
     
     def _carregar_config(self):
         """Carregar configuração de diretórios"""
-        if self.config_file.exists():
+        # Considerar também fallback local
+        fallback_file = Path(__file__).parent.parent / '.local_state' / 'diretorios.json'
+        target_file = self.config_file if self.config_file.exists() else (fallback_file if fallback_file.exists() else None)
+        if target_file and Path(target_file).exists():
             try:
-                with open(self.config_file, 'r', encoding='utf-8') as f:
+                with open(target_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     workspace_salvo = Path(config.get('workspace_dir', self._dir_padrao()))
                     workspace_atual = self._dir_padrao()
@@ -86,18 +89,25 @@ class ConfigDiretorios:
         self.repos_dir.mkdir(parents=True, exist_ok=True)
     
     def _salvar_config(self):
-        """Salvar configuração de diretórios"""
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        
+        """Salvar configuração de diretórios com fallback se não houver permissão no home."""
         config = {
             'workspace_dir': str(self.workspace_dir),
             'imagens_dir': str(self.imagens_dir),
             'figma_dir': str(self.figma_dir),
             'repos_dir': str(self.repos_dir)
         }
-        
-        with open(self.config_file, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
+        try:
+            self.config_dir.mkdir(parents=True, exist_ok=True)
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        except (PermissionError, OSError):
+            # Fallback: salvar no diretório do projeto para ambientes restritos
+            fallback_dir = Path(__file__).parent.parent / '.local_state'
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            self.config_dir = fallback_dir
+            self.config_file = fallback_dir / 'diretorios.json'
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
     
     def configurar_workspace(self, novo_dir):
         """Configurar novo diretório de workspace"""

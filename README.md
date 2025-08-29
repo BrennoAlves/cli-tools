@@ -46,6 +46,19 @@ cli-tools ui
 - Cores vibrantes (tema Dracula)
 - Feedback visual em tempo real
 
+Temas:
+- `CLI_THEME=transparent` (padrão, usa fundo do seu terminal)
+- `CLI_THEME=dracula` (fundo Dracula dentro da UI)
+
+Exemplos:
+```bash
+CLI_THEME=dracula cli-tools
+CLI_THEME=transparent cli-tools
+```
+
+Atalho:
+- Dentro da UI, pressione `T` para alternar entre os temas.
+
 ## 📊 Status e Monitoramento
 
 ```bash

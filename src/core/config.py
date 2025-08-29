@@ -4,7 +4,11 @@ Configuração de APIs para cli-tools
 """
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:  # ModuleNotFoundError ou similar
+    def load_dotenv(*args, **kwargs):
+        return False
 
 class ConfigAPI:
     def __init__(self):
