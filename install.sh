@@ -65,10 +65,15 @@ cp -r src "$INSTALL_DIR/"
 cp requirements.txt "$INSTALL_DIR/"
 cp README.md "$INSTALL_DIR/"
 
-# Instalar dependências
-print_color $YELLOW "📚 Instalando dependências..."
+# Criar ambiente virtual
+print_color $YELLOW "🐍 Criando ambiente virtual..."
 cd "$INSTALL_DIR"
-pip3 install --user -r requirements.txt
+python3 -m venv venv
+
+# Ativar ambiente virtual e instalar dependências
+print_color $YELLOW "📚 Instalando dependências..."
+source venv/bin/activate
+pip install -r requirements.txt
 
 # Criar wrapper executável
 print_color $YELLOW "🔗 Criando comando cli-tools..."
@@ -83,8 +88,9 @@ export USER_PWD
 # Diretório de instalação
 CLI_TOOLS_DIR="$HOME/.local/share/cli-tools"
 
-# Executar
+# Ativar ambiente virtual e executar
 cd "$CLI_TOOLS_DIR"
+source venv/bin/activate
 export PYTHONPATH="$CLI_TOOLS_DIR:$PYTHONPATH"
 python3 -m src.main "$@"
 EOF
