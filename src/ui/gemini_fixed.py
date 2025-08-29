@@ -41,10 +41,9 @@ class CliToolsTips(Static):
     
     def render(self):
         tips = Text()
-        tips.append("Dicas para começar:\n", style="#f8f8f2")
-        tips.append("1. Navegue com setas, selecione ferramentas ou use comandos.\n", style="#f8f8f2")
-        tips.append("2. Seja específico para melhores resultados.\n", style="#f8f8f2")
-        tips.append("3. /help para mais informações.\n", style="#f8f8f2")
+        tips.append("Navegação:\n", style="#f8f8f2")
+        tips.append("↑↓ Navegar  •  Enter Selecionar  •  q Sair\n", style="#50fa7b")
+        tips.append("\n", style="#f8f8f2")
         return tips
 
 class CliToolsContext(Static):

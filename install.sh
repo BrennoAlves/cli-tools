@@ -143,7 +143,6 @@ print_color $GREEN "
   cli-tools search \"natureza\" -n 5    # Buscar imagens
   cli-tools figma abc123def            # Extrair Figma
   cli-tools repo owner/repo            # Baixar repositório
-  cli-tools ui                         # Interface interativa
   cli-tools status                     # Status do sistema
 
 📚 Documentação completa em: ~/.local/share/cli-tools/README.md
