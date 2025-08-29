@@ -7,9 +7,10 @@ from .config import (
     get_api_key, set_api_key, get_workspace, set_workspace,
 )
 from textual.app import App, ComposeResult
-from textual.widgets import Static, Input, Button, Select
+from textual.widgets import Static
 from textual.containers import Vertical, Center, Container
 from textual.binding import Binding
+from textual import events
 from textual.reactive import reactive
 from rich.text import Text
 from rich.align import Align
@@ -133,13 +134,34 @@ class MenuApp(App):
         self._stack = []
         self._set_content(self.menu, push=True)
 
+    def _current_widget(self):
+        if hasattr(self, '_stack') and self._stack:
+            return self._stack[-1]
+        return self.menu
+
     def action_move_up(self):
-        self.menu.move_up()
+        cur = self._current_widget()
+        if isinstance(cur, BaseListForm):
+            cur.action_up()
+        else:
+            self.menu.move_up()
 
     def action_move_down(self):
-        self.menu.move_down()
+        cur = self._current_widget()
+        if isinstance(cur, BaseListForm):
+            cur.action_down()
+        else:
+            self.menu.move_down()
 
     def action_select(self):
+        cur = self._current_widget()
+        if isinstance(cur, BaseListForm):
+            # Se estiver editando campo de texto, confirmar edição
+            if cur._editing:
+                cur.confirm_edit()
+            else:
+                cur.action_select()
+            return
         action = self.menu.current_action()
         if action == 'search':
             self._push_screen(SearchForm())
@@ -150,11 +172,11 @@ class MenuApp(App):
         elif action == 'status':
             self._push_screen(OutputScreen(['status','--simple']))
         elif action == 'help':
-            self._push_screen(OutputScreen(['help']))
+            self._push_screen(HelpForm(self))
         elif action == 'config':
             self._push_screen(ConfigForm())
         elif action == 'costs':
-            self._push_screen(OutputScreen(['costs']))
+            self._push_screen(CostsForm())
         else:
             self.exit(action)
 
@@ -166,6 +188,14 @@ class MenuApp(App):
         self.notify(f"Tema: {self._theme}")
         set_theme(self._theme)
 
+    def on_key(self, event: events.Key) -> None:
+        """Encaminha teclas para o formulário atual quando aberto."""
+        cur = self._current_widget()
+        if isinstance(cur, BaseListForm):
+            cur.on_key(event)
+            event.stop()
+            return
+
     # Navegação interna
     def _set_content(self, widget: Static, push: bool = False):
         # Remove conteúdo atual e monta o novo
@@ -173,6 +203,11 @@ class MenuApp(App):
             for child in list(self._content.children):
                 child.remove()
             self._content.mount(widget)
+            # garantir foco no widget interativo
+            try:
+                widget.focus()
+            except Exception:
+                pass
         if push:
             self._stack.append(widget)
 
@@ -189,7 +224,11 @@ class MenuApp(App):
                 self._set_content(self._stack[-1], push=False)
 
     def action_back(self):
-        self._pop_screen()
+        cur = self._current_widget()
+        if isinstance(cur, BaseListForm) and cur._editing:
+            cur.cancel_edit()
+        else:
+            self._pop_screen()
 
 
 class OutputScreen(Static):
@@ -238,6 +277,7 @@ class OutputScreen(Static):
 
 
 class BaseListForm(Static):
+    can_focus = True
     selected_index = reactive(0)
     title = ""
 
@@ -245,7 +285,7 @@ class BaseListForm(Static):
         super().__init__()
         self.items = []  # [{'label':str,'type':'text|choice|action','value':str,'choices':list}]
         self._editing = False
-        self._input = Input()
+        self._buffer = ""
         self._result: Text | None = None
 
     def render(self):
@@ -260,7 +300,10 @@ class BaseListForm(Static):
                 t.append(prefix, style=DRACULA['pink'] if sel else DRACULA['comment'])
                 t.append(it['label'] + "\n", style=f"bold {color}")
             else:
-                val = it.get('value', '') or ''
+                if self._editing and sel and it.get('type') == 'text':
+                    val = self._buffer
+                else:
+                    val = it.get('value', '') or ''
                 t.append(prefix, style=DRACULA['pink'] if sel else DRACULA['comment'])
                 t.append(f"{it['label']}: ", style=f"bold {color}")
                 t.append(str(val) + "\n", style=DRACULA['comment'])
@@ -305,18 +348,59 @@ class BaseListForm(Static):
                 self.refresh()
         else:  # text
             self._editing = True
-            self._input.value = str(it.get('value') or '')
-            # Monta input temporário abaixo
-            self.mount(Center(self._input))
-            self._input.focus()
+            self._buffer = str(it.get('value') or '')
+            self.refresh()
+            try:
+                self.focus()
+            except Exception:
+                pass
 
-    def on_input_submitted(self, event: Input.Submitted):
+    def on_key(self, event: events.Key) -> None:
+        if not self._editing:
+            return
+        key = event.key or ''
+        ch = getattr(event, 'character', '') or ''
+        if key in ('enter', 'return'):
+            self.confirm_edit()
+            event.stop()
+            return
+        if key in ('escape',):
+            self.cancel_edit()
+            event.stop()
+            return
+        if key in ('backspace',):
+            self._buffer = self._buffer[:-1]
+            self.refresh()
+            event.stop()
+            return
+        if key == 'space':
+            self._buffer += ' '
+            self.refresh()
+            event.stop()
+            return
+        # teclas de caractere imprimível
+        if ch and len(ch) == 1 and ch.isprintable():
+            self._buffer += ch
+        elif len(key) == 1 and key.isprintable() and not key.startswith('ctrl+'):
+            self._buffer += key
+        self.refresh()
+        event.stop()
+        return
+
+    def confirm_edit(self):
         if not self._editing:
             return
         it = self.items[self.selected_index]
-        it['value'] = event.value.strip()
+        it['value'] = (self._buffer or '').strip()
         self._editing = False
-        self._input.remove()
+        self._buffer = ""
+        self.refresh()
+
+    def cancel_edit(self):
+        if not self._editing:
+            return
+        self._editing = False
+        self._buffer = ""
         self.refresh()
 
     def key_escape(self):
@@ -326,6 +410,11 @@ class BaseListForm(Static):
             self.refresh()
         else:
             self.app.action_back()
+
+    # utilitário para subclasses atualizarem resultado
+    def set_result(self, text: Text):
+        self._result = text
+        self.refresh()
 
 
 class SearchForm(BaseListForm):
@@ -341,6 +430,13 @@ class SearchForm(BaseListForm):
             {"label": "Voltar", "type": "action", "handler": self.app.action_back},
         ]
         self._result = None
+
+    def set_values(self, query: str = '', count: int = 1, orientation: str = '', output: str = ''):
+        self.items[0]['value'] = query
+        self.items[1]['value'] = str(count)
+        self.items[2]['value'] = orientation
+        self.items[3]['value'] = output
+        self.refresh()
 
     def _run(self):
         from src.lib.apis import pexels_download_files
@@ -381,9 +477,24 @@ class FigmaForm(BaseListForm):
         ]
         self._result = None
 
+    def set_values(self, file_key: str = '', max_images: int = 3, fmt: str = 'png', mode: str = 'all', output: str = ''):
+        self.items[0]['value'] = file_key
+        self.items[1]['value'] = str(max_images)
+        self.items[2]['value'] = fmt
+        self.items[3]['value'] = mode
+        self.items[4]['value'] = output
+        self.refresh()
+
     def _run(self):
         from src.lib.apis import figma_download_files
         key = self.items[0]['value'] or ''
+        # Validação simples do file_key
+        import re as _re
+        if not _re.match(r'^[A-Za-z0-9\-]+$', key):
+            t = Text()
+            t.append('❌ file_key inválido. Use apenas letras, números e hífens.', style=DRACULA['pink'])
+            self.set_result(t)
+            return
         try:
             max_images = int(self.items[1]['value'] or '3')
         except ValueError:
@@ -421,9 +532,23 @@ class RepoForm(BaseListForm):
         ]
         self._result = None
 
+    def set_values(self, repo: str = '', query: str = '', no_ai: bool = False, all_clone: bool = False, output: str = ''):
+        self.items[0]['value'] = repo
+        self.items[1]['value'] = query
+        self.items[2]['value'] = '1' if no_ai else ''
+        self.items[3]['value'] = '1' if all_clone else ''
+        self.items[4]['value'] = output
+        self.refresh()
+
     def _run(self):
         from src.lib.apis import repo_download_auto
         repo = self.items[0]['value'] or ''
+        # validação owner/repo
+        import re as _re
+        if not _re.match(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$', repo):
+            t = Text(); t.append('❌ Repositório inválido. Use usuario/repositorio.', style=DRACULA['pink'])
+            self.set_result(t)
+            return
         query = self.items[1]['value'] or None
         no_ai = (self.items[2]['value'] == '1')
         all_clone = (self.items[3]['value'] == '1')
@@ -435,8 +560,7 @@ class RepoForm(BaseListForm):
             t.append(f"📦 Repositório salvo em: {path}")
         except Exception as e:
             t.append(f"❌ {e}", style=DRACULA['pink'])
-        self._result = t
-        self.refresh()
+        self.set_result(t)
 
 
 class ConfigForm(BaseListForm):
@@ -473,6 +597,46 @@ class ConfigForm(BaseListForm):
             self.app.notify('Configurações salvas')
         except Exception as e:
             self.app.notify(f'Erro: {e}')
+
+
+class HelpForm(BaseListForm):
+    def __init__(self, app: MenuApp):
+        super().__init__()
+        self._app = app
+        self.title = "Ajuda e Exemplos"
+        self.items = [
+            {"label": "Exemplo: Buscar 3 imagens 'office desk'", "type": "action", "handler": self._ex_search},
+            {"label": "Exemplo: Figma components key=AbCdEf", "type": "action", "handler": self._ex_figma},
+            {"label": "Exemplo: Repo 'user/repo' IA query=frontend", "type": "action", "handler": self._ex_repo},
+            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
+        ]
+
+    def _ex_search(self):
+        f = SearchForm()
+        f.set_values(query='office desk', count=3, orientation='landscape')
+        self._app._push_screen(f)
+
+    def _ex_figma(self):
+        f = FigmaForm()
+        f.set_values(file_key='AbCdEf', max_images=3, fmt='png', mode='components')
+        self._app._push_screen(f)
+
+    def _ex_repo(self):
+        f = RepoForm()
+        f.set_values(repo='user/repo', query='frontend', no_ai=False, all_clone=False)
+        self._app._push_screen(f)
+
+
+class CostsForm(BaseListForm):
+    def __init__(self):
+        super().__init__()
+        self.title = "Custos e Limites (estimativa)"
+        self.items = [
+            {"label": "Pexels: grátis (limites por hora)", "type": "action", "handler": self.app.action_back},
+            {"label": "Figma: grátis (varia por uso)", "type": "action", "handler": self.app.action_back},
+            {"label": "Gemini: gratuito limitado (configure GEMINI_API_KEY)", "type": "action", "handler": self.app.action_back},
+            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
+        ]
 
 
 def interactive_menu():
