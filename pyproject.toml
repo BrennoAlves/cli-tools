@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cli-tools"
+version = "2.0.0"
+description = "CLI Tools v2.0 — Kit de ferramentas para desenvolvedores"
+requires-python = ">=3.9"
+dependencies = [
+  "click>=8.0.0",
+  "requests>=2.25.0",
+  "rich>=10.0.0",
+  "python-dotenv>=0.19.0",
+  "textual>=0.20.0",
+]
+
+[project.scripts]
+cli-tools = "src.main:cli"
+
