@@ -144,15 +144,15 @@ def cli(ctx, quiet):
     ctx.ensure_object(dict)
     ctx.obj['quiet'] = quiet
     
-    # Se nenhum comando foi especificado, abrir navegação interativa
+    # Se nenhum comando foi especificado, abrir interface UI
     if ctx.invoked_subcommand is None:
         try:
-            from core.navegacao_cli import navegador_cli
-            navegador_cli.navegar()
+            from ui.gemini_fixed import run_cli_tools_interface
+            run_cli_tools_interface()
         except KeyboardInterrupt:
             print("\n\n👋 Até logo!")
         except Exception as e:
-            print(f"\n❌ Erro na navegação: {e}")
+            print(f"\n❌ Erro na interface: {e}")
             print("💡 Use 'cli-tools --help' para ver comandos disponíveis")
 
 @cli.command()

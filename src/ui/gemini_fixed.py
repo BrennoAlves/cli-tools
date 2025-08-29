@@ -183,13 +183,7 @@ class CliToolsApp(App):
             # Context
             CliToolsContext(),
             
-            # Prompt area
-            Container(
-                CliToolsPrompt(),
-                id="prompt-container"
-            ),
-            
-            # Commands (navegável)
+            # Commands (navegável) - SEM prompt area
             self.commands,
             
             # Footer
