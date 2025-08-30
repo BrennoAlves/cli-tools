@@ -3,13 +3,50 @@ Interface interativa do terminal.
 """
 
 from textual.app import App, ComposeResult
-from textual.widgets import Static, ListView, ListItem, Label, Input
+from textual.widgets import Static, ListView, ListItem, Label, Input, ProgressBar
 from textual.containers import Vertical, Container
 from textual.binding import Binding
 from textual.screen import Screen
 from rich.text import Text
 from rich.align import Align
-import asyncio
+def validate_query(value):
+    """Validador para consulta de busca."""
+    if not value.strip():
+        return False, "Consulta não pode estar vazia"
+    if len(value.strip()) < 2:
+        return False, "Consulta deve ter pelo menos 2 caracteres"
+    return True, ""
+
+def validate_count(value):
+    """Validador para quantidade."""
+    try:
+        num = int(value)
+        if num < 1:
+            return False, "Deve ser maior que 0"
+        if num > 80:
+            return False, "Máximo 80 imagens"
+        return True, ""
+    except ValueError:
+        return False, "Deve ser um número"
+
+def validate_figma_key(value):
+    """Validador para Figma file key."""
+    if not value.strip():
+        return False, "File key não pode estar vazio"
+    if len(value.strip()) < 10:
+        return False, "File key muito curto"
+    return True, ""
+
+def validate_repo(value):
+    """Validador para repositório."""
+    if not value.strip():
+        return False, "Repositório não pode estar vazio"
+    if "/" not in value:
+        return False, "Formato: usuario/repositorio"
+    parts = value.split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return False, "Formato: usuario/repositorio"
+    return True, ""
 
 class MenuListItem(ListItem):
     def __init__(self, label: str, description: str, action: str):
@@ -91,7 +128,13 @@ class SearchScreen(Screen):
                 def callback(value):
                     self.query = value
                     self.refresh_menu()
-                self.app.push_screen(InputScreen("Digite a consulta:", self.query, callback))
+                self.app.push_screen(InputScreen(
+                    "Digite a consulta:", 
+                    self.query, 
+                    callback,
+                    validator=validate_query,
+                    help_text="💡 Use termos em inglês para melhores resultados (ex: 'office desk', 'mountain landscape')"
+                ))
             elif item.action == "count":
                 def callback(value):
                     try:
@@ -99,7 +142,13 @@ class SearchScreen(Screen):
                         self.refresh_menu()
                     except ValueError:
                         pass
-                self.app.push_screen(InputScreen("Quantidade de imagens:", str(self.count), callback))
+                self.app.push_screen(InputScreen(
+                    "Quantidade de imagens:", 
+                    str(self.count), 
+                    callback,
+                    validator=validate_count,
+                    help_text="💡 Máximo 80 imagens por busca. Recomendado: 1-10 para testes."
+                ))
             elif item.action == "orientation":
                 def callback(value):
                     self.orientation = value
@@ -132,7 +181,7 @@ class SearchScreen(Screen):
         if not self.query:
             return
         
-        try:
+        def operation():
             from src.lib.apis import pexels_download_files
             files = pexels_download_files(
                 self.query, 
@@ -145,12 +194,11 @@ class SearchScreen(Screen):
                 result = f"✅ {len(files)} imagem(ns) baixada(s):\n\n"
                 for f in files:
                     result += f"📁 {f['nome']} ({f['tamanho']})\n"
+                return result
             else:
-                result = "⚠️ Nenhuma imagem encontrada."
-                
-            self.show_result(result)
-        except Exception as e:
-            self.show_result(f"❌ Erro: {e}")
+                return "⚠️ Nenhuma imagem encontrada."
+        
+        self.app.push_screen(ProgressScreen("Buscando Imagens", operation))
 
     def show_result(self, message):
         self.app.push_screen(ResultScreen("Resultado da Busca", message))
@@ -161,29 +209,61 @@ class SearchScreen(Screen):
 class InputScreen(Screen):
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "help", "Help"),
     ]
 
-    def __init__(self, prompt: str, current_value: str, callback):
+    def __init__(self, prompt: str, current_value: str, callback, validator=None, help_text=""):
         super().__init__()
         self.prompt = prompt
         self.current_value = current_value
         self.callback = callback
+        self.validator = validator
+        self.help_text = help_text
 
     def compose(self) -> ComposeResult:
         yield Static(self.prompt, classes="header")
         yield Input(value=self.current_value, id="input_field")
-        yield Static("Enter: Confirmar | Escape: Cancelar", classes="help")
+        yield Static("", id="validation_msg", classes="validation")
+        yield Static("Enter: Confirmar | Escape: Cancelar | F1: Ajuda", classes="help")
+        if self.help_text:
+            yield Static(self.help_text, id="help_content", classes="help_hidden")
 
     def on_mount(self):
         self.query_one("#input_field").focus()
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if self.validator:
+            is_valid, msg = self.validator(event.value)
+            validation_widget = self.query_one("#validation_msg")
+            if is_valid:
+                validation_widget.update("✅ Válido")
+                validation_widget.add_class("valid")
+                validation_widget.remove_class("invalid")
+            else:
+                validation_widget.update(f"❌ {msg}")
+                validation_widget.add_class("invalid")
+                validation_widget.remove_class("valid")
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         value = event.value.strip()
+        if self.validator:
+            is_valid, msg = self.validator(value)
+            if not is_valid:
+                return  # Não submete se inválido
         self.callback(value)
         self.app.pop_screen()
 
     def action_cancel(self):
         self.app.pop_screen()
+
+    def action_help(self):
+        help_widget = self.query_one("#help_content")
+        if help_widget.has_class("help_hidden"):
+            help_widget.remove_class("help_hidden")
+            help_widget.add_class("help_visible")
+        else:
+            help_widget.add_class("help_hidden")
+            help_widget.remove_class("help_visible")
 
 class SelectScreen(Screen):
     BINDINGS = [
@@ -287,7 +367,13 @@ class FigmaScreen(Screen):
                 def callback(value):
                     self.file_key = value
                     self.refresh_menu()
-                self.app.push_screen(InputScreen("Digite o File Key do Figma:", self.file_key, callback))
+                self.app.push_screen(InputScreen(
+                    "Digite o File Key do Figma:", 
+                    self.file_key, 
+                    callback,
+                    validator=validate_figma_key,
+                    help_text="💡 Encontre o File Key na URL do Figma: figma.com/file/[FILE_KEY]/nome-do-projeto"
+                ))
             elif item.action == "mode":
                 def callback(value):
                     self.mode = value
@@ -400,7 +486,13 @@ class RepoScreen(Screen):
                 def callback(value):
                     self.repo = value
                     self.refresh_menu()
-                self.app.push_screen(InputScreen("Digite o repositório (user/repo):", self.repo, callback))
+                self.app.push_screen(InputScreen(
+                    "Digite o repositório (user/repo):", 
+                    self.repo, 
+                    callback,
+                    validator=validate_repo,
+                    help_text="💡 Formato: usuario/repositorio (ex: 'facebook/react', 'microsoft/vscode')"
+                ))
             elif item.action == "query":
                 def callback(value):
                     self.query = value
@@ -574,6 +666,60 @@ class ConfigScreen(Screen):
     def action_back(self):
         self.app.pop_screen()
 
+class ProgressScreen(Screen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+    ]
+
+    def __init__(self, title: str, operation_func, *args, **kwargs):
+        super().__init__()
+        self.title = title
+        self.operation_func = operation_func
+        self.args = args
+        self.kwargs = kwargs
+
+    def compose(self) -> ComposeResult:
+        yield Static(f"⏳ {self.title}", classes="header")
+        yield ProgressBar(id="progress_bar")
+        yield Static("Executando operação...", id="status_text")
+        yield Static("Escape: Cancelar", classes="help")
+
+    async def on_mount(self):
+        progress_bar = self.query_one("#progress_bar")
+        status_text = self.query_one("#status_text")
+        
+        try:
+            progress_bar.update(progress=30)
+            status_text.update("Conectando com API...")
+            
+            # Executar operação
+            result = await self.run_operation()
+            
+            progress_bar.update(progress=100)
+            status_text.update("✅ Concluído!")
+            
+            # Mostrar resultado após breve pausa
+            await asyncio.sleep(1)
+            self.app.pop_screen()
+            self.app.push_screen(ResultScreen(self.title, result))
+            
+        except Exception as e:
+            progress_bar.update(progress=100)
+            status_text.update(f"❌ Erro: {e}")
+            await asyncio.sleep(2)
+            self.app.pop_screen()
+
+    async def run_operation(self):
+        # Simular operação assíncrona
+        import asyncio
+        await asyncio.sleep(0.5)  # Simular delay de rede
+        
+        # Executar função real
+        return self.operation_func(*self.args, **self.kwargs)
+
+    def action_cancel(self):
+        self.app.pop_screen()
+
 class ResultScreen(Screen):
     BINDINGS = [
         Binding("escape,enter,q", "back", "Back"),
@@ -608,6 +754,33 @@ class CLIToolsApp(App):
         text-align: center;
         padding: 1;
         margin-top: 1;
+    }
+    
+    .validation {
+        text-align: center;
+        padding: 0 1;
+        margin: 0;
+    }
+    
+    .validation.valid {
+        background: #50fa7b;
+        color: #282a36;
+    }
+    
+    .validation.invalid {
+        background: #ff5555;
+        color: #f8f8f2;
+    }
+    
+    .help_hidden {
+        display: none;
+    }
+    
+    .help_visible {
+        background: #6272a4;
+        color: #f8f8f2;
+        padding: 1;
+        margin: 1 0;
     }
     
     ListView {
