@@ -183,7 +183,7 @@ class SearchScreen(Screen):
             return
         
         def operation():
-            from src.lib.apis import pexels_download_files
+            from .apis import pexels_download_files
             files = pexels_download_files(
                 self.query, 
                 count=self.count, 
@@ -311,7 +311,7 @@ class StatusScreen(Screen):
 
     def refresh_status(self):
         try:
-            from src.lib.utils import get_system_status
+            from .utils import get_system_status
             status_data = get_system_status()
             
             content = []
@@ -423,7 +423,7 @@ class FigmaScreen(Screen):
             return
         
         try:
-            from src.lib.apis import figma_download_files
+            from .apis import figma_download_files
             files = figma_download_files(
                 self.file_key,
                 fmt=self.format,
@@ -533,7 +533,7 @@ class RepoScreen(Screen):
             return
         
         try:
-            from src.lib.apis import repo_download_auto
+            from .apis import repo_download_auto
             path = repo_download_auto(
                 self.repo,
                 query=self.query if self.query else None,
@@ -570,7 +570,7 @@ class ConfigScreen(Screen):
 
     def load_config(self):
         try:
-            from src.lib.config import get_config
+            from .config import get_config
             config = get_config()
             self.pexels_key = config.get('apis', {}).get('pexels', '')
             self.figma_key = config.get('apis', {}).get('figma', '')
@@ -646,7 +646,7 @@ class ConfigScreen(Screen):
 
     def save_config(self):
         try:
-            from src.lib.config import save_config
+            from .config import save_config
             config = {
                 'apis': {
                     'pexels': self.pexels_key,

@@ -1,6 +1,6 @@
 import click
 from typing import Optional
-from src.lib.apis import figma_download_files
+from ..lib.apis import figma_download_files
 
 
 @click.command(name='figma')

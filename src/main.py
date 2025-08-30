@@ -3,10 +3,10 @@
 
 import click
 
-from src.commands.search import search
-from src.commands.figma import figma
-from src.commands.repo import repo
-from src.commands.status import status
+from .commands.search import search
+from .commands.figma import figma
+from .commands.repo import repo
+from .commands.status import status
 
 
 @click.group(invoke_without_command=True)
