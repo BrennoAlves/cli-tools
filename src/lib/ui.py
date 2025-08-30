@@ -1,643 +1,824 @@
 """
-Interface e menu interativo minimalista (Textual).
+Interface interativa do terminal.
 """
 
-from .config import (
-    get_theme, set_theme, get_ui_top_pad,
-    get_api_key, set_api_key, get_workspace, set_workspace,
-)
 from textual.app import App, ComposeResult
-from textual.widgets import Static
-from textual.containers import Vertical, Center, Container
+from textual.widgets import Static, ListView, ListItem, Label, Input, ProgressBar
+from textual.containers import Vertical, Container
 from textual.binding import Binding
-from textual import events
-from textual.reactive import reactive
+from textual.screen import Screen
 from rich.text import Text
 from rich.align import Align
+def validate_query(value):
+    """Validador para consulta de busca."""
+    if not value.strip():
+        return False, "Consulta não pode estar vazia"
+    if len(value.strip()) < 2:
+        return False, "Consulta deve ter pelo menos 2 caracteres"
+    return True, ""
 
-DRACULA = {
-    'background': '#282a36',
-    'foreground': '#f8f8f2',
-    'comment': '#6272a4',
-    'cyan': '#8be9fd',
-    'purple': '#bd93f9',
-    'pink': '#ff79c6',
-}
+def validate_count(value):
+    """Validador para quantidade."""
+    try:
+        num = int(value)
+        if num < 1:
+            return False, "Deve ser maior que 0"
+        if num > 80:
+            return False, "Máximo 80 imagens"
+        return True, ""
+    except ValueError:
+        return False, "Deve ser um número"
 
-ICONS = {
-    'search': '🔍', 'figma': '🎨', 'repo': '📦', 'status': '📊',
-    'config': '⚙️', 'costs': '💰', 'setup': '🚀', 'help': '❓'
-}
+def validate_figma_key(value):
+    """Validador para Figma file key."""
+    if not value.strip():
+        return False, "File key não pode estar vazio"
+    if len(value.strip()) < 10:
+        return False, "File key muito curto"
+    return True, ""
 
+def validate_repo(value):
+    """Validador para repositório."""
+    if not value.strip():
+        return False, "Repositório não pode estar vazio"
+    if "/" not in value:
+        return False, "Formato: usuario/repositorio"
+    parts = value.split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return False, "Formato: usuario/repositorio"
+    return True, ""
 
-class Header(Static):
-    def render(self):
-        ascii_art = """
- ██████╗██╗     ██╗    ████████╗ ██████╗  ██████╗ ██╗     ███████╗
-██╔════╝██║     ██║    ╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██╔════╝
-██║     ██║     ██║       ██║   ██║   ██║██║   ██║██║     ███████╗
-██║     ██║     ██║       ██║   ██║   ██║██║   ██║██║     ╚════██║
-╚██████╗███████╗██║       ██║   ╚██████╔╝╚██████╔╝███████╗███████║
- ╚═════╝╚══════╝╚═╝       ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚══════╝"""
-        lines = ascii_art.strip().split("\n")
-        out = Text()
-        out.append("\n\n")
-        colors = [DRACULA["cyan"], DRACULA["purple"], DRACULA["pink"]]
-        for i, line in enumerate(lines):
-            color = colors[min(i * len(colors) // len(lines), len(colors) - 1)]
-            out.append(line + "\n", style=f"bold {color}")
-        out.append("\n", style=DRACULA["comment"])  # espaçamento
-        return Align.center(out)
-
-
-class SimpleMenu(Static):
-    selected_index = reactive(0)
-
-    def __init__(self):
+class MenuListItem(ListItem):
+    def __init__(self, label: str, description: str, action: str):
         super().__init__()
-        self.items = [
-            {"icon": ICONS["search"], "label": "Buscar Imagens", "desc": "Pexels com filtros", "action": "search"},
-            {"icon": ICONS["figma"], "label": "Extrair Figma", "desc": "Designs e assets", "action": "figma"},
-            {"icon": ICONS["repo"], "label": "Baixar Repositório", "desc": "GitHub com IA", "action": "repo"},
-            {"icon": ICONS["status"], "label": "Status", "desc": "APIs e workspace", "action": "status"},
-            {"icon": ICONS["config"], "label": "Configurações", "desc": "APIs e diretórios", "action": "config"},
-            {"icon": ICONS["costs"], "label": "Custos", "desc": "Uso das APIs", "action": "costs"},
-            {"icon": ICONS["setup"], "label": "Setup", "desc": "Configuração inicial", "action": "setup"},
-            {"icon": ICONS["help"], "label": "Ajuda", "desc": "Exemplos rápidos", "action": "help"},
-        ]
+        self.label = label
+        self.description = description
+        self.action = action
+        
+    def compose(self) -> ComposeResult:
+        yield Label(f"{self.label:<15} {self.description}")
 
-    def render(self):
-        t = Text()
-        for i, item in enumerate(self.items):
-            selected = i == self.selected_index
-            prefix = "▶ " if selected else "  "
-            color = DRACULA["purple"] if selected else DRACULA["foreground"]
-            t.append(prefix, style=DRACULA["pink"] if selected else DRACULA["comment"])
-            t.append(f"{item['icon']} {item['label']}", style=f"bold {color}")
-            t.append(f" — {item['desc']}\n", style=DRACULA["comment"])
-        t.append("\n↑↓ Navegar   Enter Selecionar   T Tema   Q/Esc Sair", style=DRACULA["comment"])
-        return Align.center(t)
-
-    def move_up(self):
-        if self.selected_index > 0:
-            self.selected_index -= 1
-            self.refresh()
-
-    def move_down(self):
-        if self.selected_index < len(self.items) - 1:
-            self.selected_index += 1
-            self.refresh()
-
-    def current_action(self) -> str:
-        return self.items[self.selected_index]["action"]
-
-
-class MenuApp(App):
-    CSS = f"""
-    Screen {{ background: transparent; color: {DRACULA['foreground']}; }}
-    Static {{ background: transparent; }}
-    #root {{ height: 100%; width: 100%; align: center middle; }}
-    .theme-dracula {{ background: {DRACULA['background']}; }}
-    .theme-transparent {{ background: transparent; }}
-    """
-
+class MainMenuScreen(Screen):
     BINDINGS = [
-        Binding("up", "move_up", show=False),
-        Binding("down", "move_down", show=False),
-        Binding("enter", "select", show=False),
-        Binding("t", "toggle_theme", show=True, description="Toggle theme"),
-        Binding("q", "back", show=True, description="Voltar"),
-        Binding("escape", "back", show=False),
-        Binding("ctrl+q", "quit", show=True, description="Sair"),
+        Binding("up,k", "cursor_up", "↑"),
+        Binding("down,j", "cursor_down", "↓"),
+        Binding("enter", "select", "Enter"),
+        Binding("q,escape", "quit", "Quit"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        yield Static("CLI TOOLS v2.0", classes="header")
+        yield ListView(
+            MenuListItem("search", "Buscar e baixar imagens do Pexels", "search"),
+            MenuListItem("figma", "Extrair designs do Figma", "figma"),
+            MenuListItem("repo", "Baixar repositório com IA", "repo"),
+            MenuListItem("status", "Exibir status do sistema", "status"),
+            MenuListItem("config", "Configurar APIs e workspace", "config"),
+            MenuListItem("quit", "Sair do programa", "quit"),
+            id="main_menu"
+        )
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        if hasattr(item, 'action'):
+            if item.action == "search":
+                self.app.push_screen(SearchScreen())
+            elif item.action == "figma":
+                self.app.push_screen(FigmaScreen())
+            elif item.action == "repo":
+                self.app.push_screen(RepoScreen())
+            elif item.action == "status":
+                self.app.push_screen(StatusScreen())
+            elif item.action == "config":
+                self.app.push_screen(ConfigScreen())
+            elif item.action == "quit":
+                self.app.exit()
+
+class SearchScreen(Screen):
+    BINDINGS = [
+        Binding("up,k", "cursor_up", "↑"),
+        Binding("down,j", "cursor_down", "↓"),
+        Binding("enter", "select", "Enter"),
+        Binding("escape", "back", "Back"),
     ]
 
     def __init__(self):
         super().__init__()
-        self.menu = SimpleMenu()
-        self.top_spacer = Static()
-        self._theme = get_theme()
-        self._stack = []  # pilha de telas
+        self.query = ""
+        self.count = 1
+        self.orientation = "landscape"
+        self.output = ""
 
     def compose(self) -> ComposeResult:
-        # Container de conteúdo trocável
-        content = Container(id="content")
-        root = Center(Vertical(self.top_spacer, Header(), content), id="root")
-        return [root]
+        yield Static("🔍 BUSCAR IMAGENS", classes="header")
+        yield ListView(
+            MenuListItem("query", f"Consulta: {self.query or '(vazio)'}", "query"),
+            MenuListItem("count", f"Quantidade: {self.count}", "count"),
+            MenuListItem("orientation", f"Orientação: {self.orientation}", "orientation"),
+            MenuListItem("output", f"Pasta: {self.output or '(padrão)'}", "output"),
+            MenuListItem("execute", "🚀 Executar busca", "execute"),
+            MenuListItem("back", "← Voltar", "back"),
+            id="search_menu"
+        )
 
-    def on_mount(self) -> None:
-        root = self.query_one('#root')
-        root.set_class(self._theme == 'dracula', 'theme-dracula')
-        root.set_class(self._theme == 'transparent', 'theme-transparent')
-        self.top_spacer.styles.height = get_ui_top_pad()
-        # Montar menu inicial no container de conteúdo
-        self._content = self.query_one('#content', Container)
-        self._stack = []
-        self._set_content(self.menu, push=True)
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        if hasattr(item, 'action'):
+            if item.action == "query":
+                def callback(value):
+                    self.query = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen(
+                    "Digite a consulta:", 
+                    self.query, 
+                    callback,
+                    validator=validate_query,
+                    help_text="💡 Use termos em inglês para melhores resultados (ex: 'office desk', 'mountain landscape')"
+                ))
+            elif item.action == "count":
+                def callback(value):
+                    try:
+                        self.count = int(value)
+                        self.refresh_menu()
+                    except ValueError:
+                        pass
+                self.app.push_screen(InputScreen(
+                    "Quantidade de imagens:", 
+                    str(self.count), 
+                    callback,
+                    validator=validate_count,
+                    help_text="💡 Máximo 80 imagens por busca. Recomendado: 1-10 para testes."
+                ))
+            elif item.action == "orientation":
+                def callback(value):
+                    self.orientation = value
+                    self.refresh_menu()
+                options = [("landscape", "Paisagem"), ("portrait", "Retrato"), ("square", "Quadrado")]
+                self.app.push_screen(SelectScreen("Selecione orientação:", options, callback))
+            elif item.action == "output":
+                def callback(value):
+                    self.output = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Pasta de destino:", self.output, callback))
+            elif item.action == "execute":
+                self.execute_search()
+            elif item.action == "back":
+                self.app.pop_screen()
 
-    def _current_widget(self):
-        if hasattr(self, '_stack') and self._stack:
-            return self._stack[-1]
-        return self.menu
+    def refresh_menu(self):
+        menu = self.query_one("#search_menu")
+        menu.clear()
+        menu.extend([
+            MenuListItem("query", f"Consulta: {self.query or '(vazio)'}", "query"),
+            MenuListItem("count", f"Quantidade: {self.count}", "count"),
+            MenuListItem("orientation", f"Orientação: {self.orientation}", "orientation"),
+            MenuListItem("output", f"Pasta: {self.output or '(padrão)'}", "output"),
+            MenuListItem("execute", "🚀 Executar busca", "execute"),
+            MenuListItem("back", "← Voltar", "back"),
+        ])
 
-    def action_move_up(self):
-        cur = self._current_widget()
-        if isinstance(cur, BaseListForm):
-            cur.action_up()
-        else:
-            self.menu.move_up()
-
-    def action_move_down(self):
-        cur = self._current_widget()
-        if isinstance(cur, BaseListForm):
-            cur.action_down()
-        else:
-            self.menu.move_down()
-
-    def action_select(self):
-        cur = self._current_widget()
-        if isinstance(cur, BaseListForm):
-            # Se estiver editando campo de texto, confirmar edição
-            if cur._editing:
-                cur.confirm_edit()
-            else:
-                cur.action_select()
+    def execute_search(self):
+        if not self.query:
             return
-        action = self.menu.current_action()
-        if action == 'search':
-            self._push_screen(SearchForm())
-        elif action == 'figma':
-            self._push_screen(FigmaForm())
-        elif action == 'repo':
-            self._push_screen(RepoForm())
-        elif action == 'status':
-            self._push_screen(OutputScreen(['status','--simple']))
-        elif action == 'help':
-            self._push_screen(HelpForm(self))
-        elif action == 'config':
-            self._push_screen(ConfigForm())
-        elif action == 'costs':
-            self._push_screen(CostsForm())
-        else:
-            self.exit(action)
-
-    def action_toggle_theme(self):
-        self._theme = 'dracula' if self._theme == 'transparent' else 'transparent'
-        root = self.query_one('#root')
-        root.set_class(self._theme == 'dracula', 'theme-dracula')
-        root.set_class(self._theme == 'transparent', 'theme-transparent')
-        self.notify(f"Tema: {self._theme}")
-        set_theme(self._theme)
-
-    def on_key(self, event: events.Key) -> None:
-        """Encaminha teclas para o formulário atual quando aberto."""
-        cur = self._current_widget()
-        if isinstance(cur, BaseListForm):
-            cur.on_key(event)
-            event.stop()
-            return
-
-    # Navegação interna
-    def _set_content(self, widget: Static, push: bool = False):
-        # Remove conteúdo atual e monta o novo
-        if hasattr(self, '_content') and self._content is not None:
-            for child in list(self._content.children):
-                child.remove()
-            self._content.mount(widget)
-            # garantir foco no widget interativo
-            try:
-                widget.focus()
-            except Exception:
-                pass
-        if push:
-            self._stack.append(widget)
-
-    def _push_screen(self, widget: Static):
-        self._set_content(widget, push=True)
-
-    def _pop_screen(self):
-        if self._stack:
-            self._stack.pop()
-            if not self._stack:
-                # Voltar para o menu
-                self._set_content(self.menu, push=True)
+        
+        def operation():
+            from src.lib.apis import pexels_download_files
+            files = pexels_download_files(
+                self.query, 
+                count=self.count, 
+                orientation=self.orientation, 
+                output=self.output if self.output else None
+            )
+            
+            if files:
+                result = f"✅ {len(files)} imagem(ns) baixada(s):\n\n"
+                for f in files:
+                    result += f"📁 {f['nome']} ({f['tamanho']})\n"
+                return result
             else:
-                self._set_content(self._stack[-1], push=False)
+                return "⚠️ Nenhuma imagem encontrada."
+        
+        self.app.push_screen(ProgressScreen("Buscando Imagens", operation))
+
+    def show_result(self, message):
+        self.app.push_screen(ResultScreen("Resultado da Busca", message))
 
     def action_back(self):
-        cur = self._current_widget()
-        if isinstance(cur, BaseListForm) and cur._editing:
-            cur.cancel_edit()
-        else:
-            self._pop_screen()
+        self.app.pop_screen()
 
+class InputScreen(Screen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "help", "Help"),
+    ]
 
-class OutputScreen(Static):
-    """Executa um comando do CLI e mostra a saída dentro da UI."""
-    def __init__(self, args: list[str]):
+    def __init__(self, prompt: str, current_value: str, callback, validator=None, help_text=""):
         super().__init__()
-        self.args = args
+        self.prompt = prompt
+        self.current_value = current_value
+        self.callback = callback
+        self.validator = validator
+        self.help_text = help_text
+
+    def compose(self) -> ComposeResult:
+        yield Static(self.prompt, classes="header")
+        yield Input(value=self.current_value, id="input_field")
+        yield Static("", id="validation_msg", classes="validation")
+        yield Static("Enter: Confirmar | Escape: Cancelar | F1: Ajuda", classes="help")
+        if self.help_text:
+            yield Static(self.help_text, id="help_content", classes="help_hidden")
 
     def on_mount(self):
-        text = Text()
-        text.append(f"$ cli-tools {' '.join(self.args)}\n\n", style=DRACULA['comment'])
-        if self.args and self.args[0] == 'status':
-            from src.lib.utils import get_status_text
-            out = get_status_text(simple=True)
-            text.append(out, style=DRACULA['foreground'])
-        elif self.args and self.args[0] == 'help':
-            out = (
-                "Comandos:\n"
-                "  search  - Buscar imagens (Pexels)\n"
-                "  figma   - Extrair designs\n"
-                "  repo    - Baixar repositório\n"
-                "  status  - Status do sistema\n"
-                "  ui      - Interface interativa\n"
-            )
-            text.append(out, style=DRACULA['foreground'])
-        elif self.args and self.args[0] == 'costs':
-            out = (
-                "Custos (estimativa offline):\n"
-                "  Pexels: grátis (limites por hora)\n"
-                "  Figma: grátis (varia por uso)\n"
-                "  Gemini: gratuito limitado (configure GEMINI_API_KEY)\n"
-            )
-            text.append(out, style=DRACULA['foreground'])
+        self.query_one("#input_field").focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if self.validator:
+            is_valid, msg = self.validator(event.value)
+            validation_widget = self.query_one("#validation_msg")
+            if is_valid:
+                validation_widget.update("✅ Válido")
+                validation_widget.add_class("valid")
+                validation_widget.remove_class("invalid")
+            else:
+                validation_widget.update(f"❌ {msg}")
+                validation_widget.add_class("invalid")
+                validation_widget.remove_class("valid")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        value = event.value.strip()
+        if self.validator:
+            is_valid, msg = self.validator(value)
+            if not is_valid:
+                return  # Não submete se inválido
+        self.callback(value)
+        self.app.pop_screen()
+
+    def action_cancel(self):
+        self.app.pop_screen()
+
+    def action_help(self):
+        help_widget = self.query_one("#help_content")
+        if help_widget.has_class("help_hidden"):
+            help_widget.remove_class("help_hidden")
+            help_widget.add_class("help_visible")
         else:
-            from src.lib.apis import run_cli
-            rc, out, err = run_cli(self.args, capture=True)
-            if out:
-                text.append(out, style=DRACULA['foreground'])
-            if err:
-                text.append("\n" + err, style=DRACULA['pink'])
-        text.append("\n[Esc] Voltar", style=DRACULA['comment'])
-        self.update(Align.center(text))
+            help_widget.add_class("help_hidden")
+            help_widget.remove_class("help_visible")
 
-    def key_escape(self):
-        self.app._pop_screen()
+class SelectScreen(Screen):
+    BINDINGS = [
+        Binding("up,k", "cursor_up", "↑"),
+        Binding("down,j", "cursor_down", "↓"),
+        Binding("enter", "select", "Enter"),
+        Binding("escape", "cancel", "Cancel"),
+    ]
 
+    def __init__(self, prompt: str, options: list, callback):
+        super().__init__()
+        self.prompt = prompt
+        self.options = options
+        self.callback = callback
 
-class BaseListForm(Static):
-    can_focus = True
-    selected_index = reactive(0)
-    title = ""
+    def compose(self) -> ComposeResult:
+        yield Static(self.prompt, classes="header")
+        yield ListView(
+            *[MenuListItem(label, f"Selecionar {label}", value) 
+              for value, label in self.options],
+            id="select_menu"
+        )
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        if hasattr(item, 'action'):
+            self.callback(item.action)
+            self.app.pop_screen()
+
+    def action_cancel(self):
+        self.app.pop_screen()
+
+class StatusScreen(Screen):
+    BINDINGS = [
+        Binding("escape", "back", "Back"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        yield Static("📊 STATUS", classes="header")
+        yield Static("", id="status_content")
+
+    def on_mount(self):
+        self.refresh_status()
+
+    def refresh_status(self):
+        try:
+            from src.lib.utils import get_system_status
+            status_data = get_system_status()
+            
+            content = []
+            content.append("🔧 Sistema:")
+            content.append(f"  Workspace: {status_data.get('workspace', 'N/A')}")
+            content.append(f"  Tema: {status_data.get('theme', 'N/A')}")
+            content.append("")
+            content.append("🔑 APIs:")
+            apis = status_data.get('apis', {})
+            for api, status in apis.items():
+                icon = "✅" if status else "❌"
+                content.append(f"  {api}: {icon}")
+            
+            self.query_one("#status_content").update("\n".join(content))
+        except Exception as e:
+            self.query_one("#status_content").update(f"Erro ao carregar status: {e}")
+
+    def action_back(self):
+        self.refresh_status()
+
+class FigmaScreen(Screen):
+    BINDINGS = [
+        Binding("up,k", "cursor_up", "↑"),
+        Binding("down,j", "cursor_down", "↓"),
+        Binding("enter", "select", "Enter"),
+        Binding("escape", "back", "Back"),
+    ]
 
     def __init__(self):
         super().__init__()
-        self.items = []  # [{'label':str,'type':'text|choice|action','value':str,'choices':list}]
-        self._editing = False
-        self._buffer = ""
-        self._result: Text | None = None
+        self.file_key = ""
+        self.mode = "all"
+        self.format = "png"
+        self.max_images = 10
+        self.output = ""
 
-    def render(self):
-        t = Text()
-        if self.title:
-            t.append(self.title + "\n\n", style=f"bold {DRACULA['purple']}")
-        for i, it in enumerate(self.items):
-            sel = (i == self.selected_index)
-            prefix = "▶ " if sel else "  "
-            color = DRACULA['purple'] if sel else DRACULA['foreground']
-            if it.get('type') == 'action':
-                t.append(prefix, style=DRACULA['pink'] if sel else DRACULA['comment'])
-                t.append(it['label'] + "\n", style=f"bold {color}")
-            else:
-                if self._editing and sel and it.get('type') == 'text':
-                    val = self._buffer
-                else:
-                    val = it.get('value', '') or ''
-                t.append(prefix, style=DRACULA['pink'] if sel else DRACULA['comment'])
-                t.append(f"{it['label']}: ", style=f"bold {color}")
-                t.append(str(val) + "\n", style=DRACULA['comment'])
-        t.append("\n↑↓ Navegar  Enter Selecionar/Editar  Q/Esc Voltar  Ctrl+Q Sair\n", style=DRACULA['comment'])
-        if self._result:
-            t.append("\n")
-            t.append(self._result)
-        return Align.center(t)
+    def compose(self) -> ComposeResult:
+        yield Static("🎨 FIGMA", classes="header")
+        yield ListView(
+            MenuListItem("file_key", f"File Key: {self.file_key or '(vazio)'}", "file_key"),
+            MenuListItem("mode", f"Modo: {self.mode}", "mode"),
+            MenuListItem("format", f"Formato: {self.format}", "format"),
+            MenuListItem("max_images", f"Máximo: {self.max_images}", "max_images"),
+            MenuListItem("output", f"Pasta: {self.output or '(padrão)'}", "output"),
+            MenuListItem("execute", "🚀 Executar extração", "execute"),
+            MenuListItem("back", "← Voltar", "back"),
+            id="figma_menu"
+        )
 
-    def move_up(self):
-        if self.selected_index > 0:
-            self.selected_index -= 1
-            self.refresh()
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        if hasattr(item, 'action'):
+            if item.action == "file_key":
+                def callback(value):
+                    self.file_key = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen(
+                    "Digite o File Key do Figma:", 
+                    self.file_key, 
+                    callback,
+                    validator=validate_figma_key,
+                    help_text="💡 Encontre o File Key na URL do Figma: figma.com/file/[FILE_KEY]/nome-do-projeto"
+                ))
+            elif item.action == "mode":
+                def callback(value):
+                    self.mode = value
+                    self.refresh_menu()
+                options = [("all", "Tudo"), ("components", "Componentes"), ("css", "CSS")]
+                self.app.push_screen(SelectScreen("Selecione o modo:", options, callback))
+            elif item.action == "format":
+                def callback(value):
+                    self.format = value
+                    self.refresh_menu()
+                options = [("png", "PNG"), ("jpg", "JPG"), ("svg", "SVG")]
+                self.app.push_screen(SelectScreen("Selecione o formato:", options, callback))
+            elif item.action == "max_images":
+                def callback(value):
+                    try:
+                        self.max_images = int(value)
+                        self.refresh_menu()
+                    except ValueError:
+                        pass
+                self.app.push_screen(InputScreen("Máximo de imagens:", str(self.max_images), callback))
+            elif item.action == "output":
+                def callback(value):
+                    self.output = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Pasta de destino:", self.output, callback))
+            elif item.action == "execute":
+                self.execute_figma()
+            elif item.action == "back":
+                self.app.pop_screen()
 
-    def move_down(self):
-        if self.selected_index < len(self.items) - 1:
-            self.selected_index += 1
-            self.refresh()
+    def refresh_menu(self):
+        menu = self.query_one("#figma_menu")
+        menu.clear()
+        menu.extend([
+            MenuListItem("file_key", f"File Key: {self.file_key or '(vazio)'}", "file_key"),
+            MenuListItem("mode", f"Modo: {self.mode}", "mode"),
+            MenuListItem("format", f"Formato: {self.format}", "format"),
+            MenuListItem("max_images", f"Máximo: {self.max_images}", "max_images"),
+            MenuListItem("output", f"Pasta: {self.output or '(padrão)'}", "output"),
+            MenuListItem("execute", "🚀 Executar extração", "execute"),
+            MenuListItem("back", "← Voltar", "back"),
+        ])
 
-    def action_up(self):
-        self.move_up()
-
-    def action_down(self):
-        self.move_down()
-
-    def action_select(self):
-        it = self.items[self.selected_index]
-        if it.get('type') == 'action':
-            handler = it.get('handler')
-            if handler:
-                handler()
-        elif it.get('type') == 'choice':
-            choices = it.get('choices') or []
-            cur = it.get('value')
-            if choices:
-                try:
-                    idx = [c[1] for c in choices].index(cur)
-                except ValueError:
-                    idx = -1
-                nxt = choices[(idx + 1) % len(choices)]
-                it['value'] = nxt[1]
-                self.refresh()
-        else:  # text
-            self._editing = True
-            self._buffer = str(it.get('value') or '')
-            self.refresh()
-            try:
-                self.focus()
-            except Exception:
-                pass
-
-    def on_key(self, event: events.Key) -> None:
-        if not self._editing:
+    def execute_figma(self):
+        if not self.file_key:
             return
-        key = event.key or ''
-        ch = getattr(event, 'character', '') or ''
-        if key in ('enter', 'return'):
-            self.confirm_edit()
-            event.stop()
-            return
-        if key in ('escape',):
-            self.cancel_edit()
-            event.stop()
-            return
-        if key in ('backspace',):
-            self._buffer = self._buffer[:-1]
-            self.refresh()
-            event.stop()
-            return
-        if key == 'space':
-            self._buffer += ' '
-            self.refresh()
-            event.stop()
-            return
-        # teclas de caractere imprimível
-        if ch and len(ch) == 1 and ch.isprintable():
-            self._buffer += ch
-        elif len(key) == 1 and key.isprintable() and not key.startswith('ctrl+'):
-            self._buffer += key
-        self.refresh()
-        event.stop()
-        return
-
-    def confirm_edit(self):
-        if not self._editing:
-            return
-        it = self.items[self.selected_index]
-        it['value'] = (self._buffer or '').strip()
-        self._editing = False
-        self._buffer = ""
-        self.refresh()
-
-    def cancel_edit(self):
-        if not self._editing:
-            return
-        self._editing = False
-        self._buffer = ""
-        self.refresh()
-
-    def key_escape(self):
-        if self._editing:
-            self._editing = False
-            self._input.remove()
-            self.refresh()
-        else:
-            self.app.action_back()
-
-    # utilitário para subclasses atualizarem resultado
-    def set_result(self, text: Text):
-        self._result = text
-        self.refresh()
-
-
-class SearchForm(BaseListForm):
-    def __init__(self):
-        super().__init__()
-        self.title = "Buscar Imagens"
-        self.items = [
-            {"label": "Consulta", "type": "text", "value": ""},
-            {"label": "Qtd", "type": "text", "value": "1"},
-            {"label": "Orientação", "type": "choice", "value": "", "choices": [("—",""),("landscape","landscape"),("portrait","portrait"),("square","square")]},
-            {"label": "Output", "type": "text", "value": ""},
-            {"label": "Executar", "type": "action", "handler": self._run},
-            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
-        ]
-        self._result = None
-
-    def set_values(self, query: str = '', count: int = 1, orientation: str = '', output: str = ''):
-        self.items[0]['value'] = query
-        self.items[1]['value'] = str(count)
-        self.items[2]['value'] = orientation
-        self.items[3]['value'] = output
-        self.refresh()
-
-    def _run(self):
-        from src.lib.apis import pexels_download_files
-        q = self.items[0]['value'] or ''
+        
         try:
-            c = int(self.items[1]['value'] or '1')
-        except ValueError:
-            c = 1
-        ori = self.items[2]['value'] or None
-        out = self.items[3]['value'] or None
-        t = Text()
-        t.append(f"$ search '{q}' -c {c}\n\n", style=DRACULA['comment'])
-        try:
-            files = pexels_download_files(q, count=c, orientation=ori, output=out)
+            from src.lib.apis import figma_download_files
+            files = figma_download_files(
+                self.file_key,
+                fmt=self.format,
+                scale=1.0,
+                output=self.output if self.output else None,
+                nodes=None,
+                max_images=self.max_images,
+                mode=self.mode
+            )
+            
             if files:
+                result = f"✅ {len(files)} arquivo(s) extraído(s):\n\n"
                 for f in files:
-                    t.append(f"📁 {f['nome']} ({f['tamanho']})\n")
+                    result += f"📁 {f['nome']} ({f['tamanho']})\n"
             else:
-                t.append("⚠️ Nenhum arquivo gerado.")
+                result = "⚠️ Nenhum arquivo gerado."
+                
+            self.show_result(result)
         except Exception as e:
-            t.append(f"❌ {e}", style=DRACULA['pink'])
-        self._result = t
-        self.refresh()
+            self.show_result(f"❌ Erro: {e}")
 
+    def show_result(self, message):
+        self.app.push_screen(ResultScreen("Resultado Figma", message))
 
-class FigmaForm(BaseListForm):
+    def action_back(self):
+        self.app.pop_screen()
+
+class RepoScreen(Screen):
+    BINDINGS = [
+        Binding("up,k", "cursor_up", "↑"),
+        Binding("down,j", "cursor_down", "↓"),
+        Binding("enter", "select", "Enter"),
+        Binding("escape", "back", "Back"),
+    ]
+
     def __init__(self):
         super().__init__()
-        self.title = "Extrair Figma"
-        self.items = [
-            {"label": "File Key", "type": "text", "value": ""},
-            {"label": "Max", "type": "text", "value": "3"},
-            {"label": "Formato", "type": "choice", "value": "png", "choices": [(x,x) for x in ['png','webp','jpg','svg','pdf']]},
-            {"label": "Modo", "type": "choice", "value": "all", "choices": [(x,x) for x in ['all','components','css']]},
-            {"label": "Output", "type": "text", "value": ""},
-            {"label": "Executar", "type": "action", "handler": self._run},
-            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
-        ]
-        self._result = None
+        self.repo = ""
+        self.query = ""
+        self.no_ai = False
+        self.all_files = False
+        self.output = ""
 
-    def set_values(self, file_key: str = '', max_images: int = 3, fmt: str = 'png', mode: str = 'all', output: str = ''):
-        self.items[0]['value'] = file_key
-        self.items[1]['value'] = str(max_images)
-        self.items[2]['value'] = fmt
-        self.items[3]['value'] = mode
-        self.items[4]['value'] = output
-        self.refresh()
+    def compose(self) -> ComposeResult:
+        yield Static("📦 REPOSITÓRIO", classes="header")
+        yield ListView(
+            MenuListItem("repo", f"Repo: {self.repo or '(vazio)'}", "repo"),
+            MenuListItem("query", f"Query: {self.query or '(vazio)'}", "query"),
+            MenuListItem("no_ai", f"Sem IA: {'Sim' if self.no_ai else 'Não'}", "no_ai"),
+            MenuListItem("all_files", f"Todos arquivos: {'Sim' if self.all_files else 'Não'}", "all_files"),
+            MenuListItem("output", f"Pasta: {self.output or '(padrão)'}", "output"),
+            MenuListItem("execute", "🚀 Executar download", "execute"),
+            MenuListItem("back", "← Voltar", "back"),
+            id="repo_menu"
+        )
 
-    def _run(self):
-        from src.lib.apis import figma_download_files
-        key = self.items[0]['value'] or ''
-        # Validação simples do file_key
-        import re as _re
-        if not _re.match(r'^[A-Za-z0-9\-]+$', key):
-            t = Text()
-            t.append('❌ file_key inválido. Use apenas letras, números e hífens.', style=DRACULA['pink'])
-            self.set_result(t)
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        if hasattr(item, 'action'):
+            if item.action == "repo":
+                def callback(value):
+                    self.repo = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen(
+                    "Digite o repositório (user/repo):", 
+                    self.repo, 
+                    callback,
+                    validator=validate_repo,
+                    help_text="💡 Formato: usuario/repositorio (ex: 'facebook/react', 'microsoft/vscode')"
+                ))
+            elif item.action == "query":
+                def callback(value):
+                    self.query = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Query para IA (opcional):", self.query, callback))
+            elif item.action == "no_ai":
+                self.no_ai = not self.no_ai
+                self.refresh_menu()
+            elif item.action == "all_files":
+                self.all_files = not self.all_files
+                self.refresh_menu()
+            elif item.action == "output":
+                def callback(value):
+                    self.output = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Pasta de destino:", self.output, callback))
+            elif item.action == "execute":
+                self.execute_repo()
+            elif item.action == "back":
+                self.app.pop_screen()
+
+    def refresh_menu(self):
+        menu = self.query_one("#repo_menu")
+        menu.clear()
+        menu.extend([
+            MenuListItem("repo", f"Repo: {self.repo or '(vazio)'}", "repo"),
+            MenuListItem("query", f"Query: {self.query or '(vazio)'}", "query"),
+            MenuListItem("no_ai", f"Sem IA: {'Sim' if self.no_ai else 'Não'}", "no_ai"),
+            MenuListItem("all_files", f"Todos arquivos: {'Sim' if self.all_files else 'Não'}", "all_files"),
+            MenuListItem("output", f"Pasta: {self.output or '(padrão)'}", "output"),
+            MenuListItem("execute", "🚀 Executar download", "execute"),
+            MenuListItem("back", "← Voltar", "back"),
+        ])
+
+    def execute_repo(self):
+        if not self.repo:
             return
+        
         try:
-            max_images = int(self.items[1]['value'] or '3')
-        except ValueError:
-            max_images = 3
-        fmt = self.items[2]['value'] or 'png'
-        mode = self.items[3]['value'] or 'all'
-        out = self.items[4]['value'] or None
-        t = Text()
-        t.append(f"$ figma {key} -n {max_images} -f {fmt} --mode {mode}\n\n", style=DRACULA['comment'])
-        try:
-            files = figma_download_files(key, fmt=fmt, scale=1.0, output=out, nodes=None, max_images=max_images, mode=mode)
-            if files:
-                for f in files:
-                    t.append(f"📁 {f['nome']} ({f['tamanho']})\n")
-            else:
-                t.append("⚠️ Nenhum arquivo gerado.")
+            from src.lib.apis import repo_download_auto
+            path = repo_download_auto(
+                self.repo,
+                query=self.query if self.query else None,
+                output=self.output if self.output else None,
+                no_ai=self.no_ai,
+                all_clone=self.all_files,
+                explain=None,
+                dry_run=False,
+                interactive=False
+            )
+            
+            result = f"✅ Repositório baixado:\n\n📦 {path}"
+            self.show_result(result)
         except Exception as e:
-            t.append(f"❌ {e}", style=DRACULA['pink'])
-        self._result = t
-        self.refresh()
+            self.show_result(f"❌ Erro: {e}")
 
+    def show_result(self, message):
+        self.app.push_screen(ResultScreen("Resultado Repo", message))
 
-class RepoForm(BaseListForm):
+    def action_back(self):
+        self.app.pop_screen()
+
+class ConfigScreen(Screen):
+    BINDINGS = [
+        Binding("up,k", "cursor_up", "↑"),
+        Binding("down,j", "cursor_down", "↓"),
+        Binding("enter", "select", "Enter"),
+        Binding("escape", "back", "Back"),
+    ]
+
     def __init__(self):
         super().__init__()
-        self.title = "Baixar Repositório"
-        self.items = [
-            {"label": "Repositório", "type": "text", "value": ""},
-            {"label": "Query (IA)", "type": "text", "value": ""},
-            {"label": "Sem IA", "type": "choice", "value": "", "choices": [("não",""),("sim","1")]},
-            {"label": "Clone Completo", "type": "choice", "value": "", "choices": [("não",""),("sim","1")]},
-            {"label": "Output", "type": "text", "value": ""},
-            {"label": "Executar", "type": "action", "handler": self._run},
-            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
-        ]
-        self._result = None
+        self.load_config()
 
-    def set_values(self, repo: str = '', query: str = '', no_ai: bool = False, all_clone: bool = False, output: str = ''):
-        self.items[0]['value'] = repo
-        self.items[1]['value'] = query
-        self.items[2]['value'] = '1' if no_ai else ''
-        self.items[3]['value'] = '1' if all_clone else ''
-        self.items[4]['value'] = output
-        self.refresh()
-
-    def _run(self):
-        from src.lib.apis import repo_download_auto
-        repo = self.items[0]['value'] or ''
-        # validação owner/repo
-        import re as _re
-        if not _re.match(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$', repo):
-            t = Text(); t.append('❌ Repositório inválido. Use usuario/repositorio.', style=DRACULA['pink'])
-            self.set_result(t)
-            return
-        query = self.items[1]['value'] or None
-        no_ai = (self.items[2]['value'] == '1')
-        all_clone = (self.items[3]['value'] == '1')
-        out = self.items[4]['value'] or None
-        t = Text()
-        t.append(f"$ repo {repo} {query or ''} {'--no-ai' if no_ai else ''} {'--all' if all_clone else ''}\n\n", style=DRACULA['comment'])
+    def load_config(self):
         try:
-            path = repo_download_auto(repo, query=query, output=out, no_ai=no_ai, all_clone=all_clone)
-            t.append(f"📦 Repositório salvo em: {path}")
-        except Exception as e:
-            t.append(f"❌ {e}", style=DRACULA['pink'])
-        self.set_result(t)
+            from src.lib.config import get_config
+            config = get_config()
+            self.pexels_key = config.get('apis', {}).get('pexels', '')
+            self.figma_key = config.get('apis', {}).get('figma', '')
+            self.gemini_key = config.get('apis', {}).get('gemini', '')
+            self.workspace = config.get('workspace', '')
+            self.theme = config.get('theme', 'transparent')
+        except:
+            self.pexels_key = ""
+            self.figma_key = ""
+            self.gemini_key = ""
+            self.workspace = ""
+            self.theme = "transparent"
 
+    def compose(self) -> ComposeResult:
+        yield Static("⚙️ CONFIG", classes="header")
+        yield ListView(
+            MenuListItem("pexels", f"Pexels: {self.pexels_key or '(não configurado)'}", "pexels"),
+            MenuListItem("figma", f"Figma: {self.figma_key or '(não configurado)'}", "figma"),
+            MenuListItem("gemini", f"Gemini: {self.gemini_key or '(não configurado)'}", "gemini"),
+            MenuListItem("workspace", f"Workspace: {self.workspace or '(padrão)'}", "workspace"),
+            MenuListItem("theme", f"Tema: {self.theme}", "theme"),
+            MenuListItem("save", "💾 Salvar configurações", "save"),
+            MenuListItem("back", "← Voltar", "back"),
+            id="config_menu"
+        )
 
-class ConfigForm(BaseListForm):
-    def __init__(self):
-        super().__init__()
-        self.title = "Configurações"
-        self.items = [
-            {"label": "Workspace", "type": "text", "value": get_workspace()},
-            {"label": "PEXELS_API_KEY", "type": "text", "value": get_api_key('pexels') or ''},
-            {"label": "FIGMA_API_TOKEN", "type": "text", "value": get_api_key('figma') or ''},
-            {"label": "GEMINI_API_KEY", "type": "text", "value": get_api_key('gemini') or ''},
-            {"label": "Tema", "type": "choice", "value": get_theme(), "choices": [("transparent","transparent"),("dracula","dracula")]},
-            {"label": "Salvar", "type": "action", "handler": self._save},
-            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
-        ]
-        self._result = None
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        if hasattr(item, 'action'):
+            if item.action == "pexels":
+                def callback(value):
+                    self.pexels_key = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Pexels API Key:", self.pexels_key, callback))
+            elif item.action == "figma":
+                def callback(value):
+                    self.figma_key = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Figma API Token:", self.figma_key, callback))
+            elif item.action == "gemini":
+                def callback(value):
+                    self.gemini_key = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Gemini API Key:", self.gemini_key, callback))
+            elif item.action == "workspace":
+                def callback(value):
+                    self.workspace = value
+                    self.refresh_menu()
+                self.app.push_screen(InputScreen("Workspace path:", self.workspace, callback))
+            elif item.action == "theme":
+                def callback(value):
+                    self.theme = value
+                    self.refresh_menu()
+                options = [("transparent", "Transparente"), ("dracula", "Dracula")]
+                self.app.push_screen(SelectScreen("Selecione o tema:", options, callback))
+            elif item.action == "save":
+                self.save_config()
+            elif item.action == "back":
+                self.app.pop_screen()
 
-    def _save(self):
-        ws = self.items[0]['value'] or ''
-        pex = self.items[1]['value'] or ''
-        fig = self.items[2]['value'] or ''
-        gem = self.items[3]['value'] or ''
-        thm = self.items[4]['value'] or 'transparent'
+    def refresh_menu(self):
+        menu = self.query_one("#config_menu")
+        menu.clear()
+        menu.extend([
+            MenuListItem("pexels", f"Pexels: {self.pexels_key or '(não configurado)'}", "pexels"),
+            MenuListItem("figma", f"Figma: {self.figma_key or '(não configurado)'}", "figma"),
+            MenuListItem("gemini", f"Gemini: {self.gemini_key or '(não configurado)'}", "gemini"),
+            MenuListItem("workspace", f"Workspace: {self.workspace or '(padrão)'}", "workspace"),
+            MenuListItem("theme", f"Tema: {self.theme}", "theme"),
+            MenuListItem("save", "💾 Salvar configurações", "save"),
+            MenuListItem("back", "← Voltar", "back"),
+        ])
+
+    def save_config(self):
         try:
-            if ws:
-                set_workspace(ws)
-            if pex:
-                set_api_key('pexels', pex)
-            if fig:
-                set_api_key('figma', fig)
-            if gem:
-                set_api_key('gemini', gem)
-            set_theme(thm)
-            self.app.notify('Configurações salvas')
+            from src.lib.config import save_config
+            config = {
+                'apis': {
+                    'pexels': self.pexels_key,
+                    'figma': self.figma_key,
+                    'gemini': self.gemini_key
+                },
+                'workspace': self.workspace,
+                'theme': self.theme
+            }
+            save_config(config)
+            self.show_result("Configurações salvas com sucesso!")
         except Exception as e:
-            self.app.notify(f'Erro: {e}')
+            self.show_result(f"Erro ao salvar: {e}")
 
+    def show_result(self, message):
+        self.app.push_screen(ResultScreen("Config", message))
 
-class HelpForm(BaseListForm):
-    def __init__(self, app: MenuApp):
+    def action_back(self):
+        self.app.pop_screen()
+
+class ProgressScreen(Screen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+    ]
+
+    def __init__(self, title: str, operation_func, *args, **kwargs):
         super().__init__()
-        self._app = app
-        self.title = "Ajuda e Exemplos"
-        self.items = [
-            {"label": "Exemplo: Buscar 3 imagens 'office desk'", "type": "action", "handler": self._ex_search},
-            {"label": "Exemplo: Figma components key=AbCdEf", "type": "action", "handler": self._ex_figma},
-            {"label": "Exemplo: Repo 'user/repo' IA query=frontend", "type": "action", "handler": self._ex_repo},
-            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
-        ]
+        self.title = title
+        self.operation_func = operation_func
+        self.args = args
+        self.kwargs = kwargs
 
-    def _ex_search(self):
-        f = SearchForm()
-        f.set_values(query='office desk', count=3, orientation='landscape')
-        self._app._push_screen(f)
+    def compose(self) -> ComposeResult:
+        yield Static(f"⏳ {self.title}", classes="header")
+        yield ProgressBar(id="progress_bar")
+        yield Static("Executando operação...", id="status_text")
+        yield Static("Escape: Cancelar", classes="help")
 
-    def _ex_figma(self):
-        f = FigmaForm()
-        f.set_values(file_key='AbCdEf', max_images=3, fmt='png', mode='components')
-        self._app._push_screen(f)
+    async def on_mount(self):
+        progress_bar = self.query_one("#progress_bar")
+        status_text = self.query_one("#status_text")
+        
+        try:
+            progress_bar.update(progress=30)
+            status_text.update("Conectando com API...")
+            
+            # Executar operação
+            result = await self.run_operation()
+            
+            progress_bar.update(progress=100)
+            status_text.update("✅ Concluído!")
+            
+            # Mostrar resultado após breve pausa
+            await asyncio.sleep(1)
+            self.app.pop_screen()
+            self.app.push_screen(ResultScreen(self.title, result))
+            
+        except Exception as e:
+            progress_bar.update(progress=100)
+            status_text.update(f"❌ Erro: {e}")
+            await asyncio.sleep(2)
+            self.app.pop_screen()
 
-    def _ex_repo(self):
-        f = RepoForm()
-        f.set_values(repo='user/repo', query='frontend', no_ai=False, all_clone=False)
-        self._app._push_screen(f)
+    async def run_operation(self):
+        # Simular operação assíncrona
+        import asyncio
+        await asyncio.sleep(0.5)  # Simular delay de rede
+        
+        # Executar função real
+        return self.operation_func(*self.args, **self.kwargs)
 
+    def action_cancel(self):
+        self.app.pop_screen()
 
-class CostsForm(BaseListForm):
-    def __init__(self):
+class ResultScreen(Screen):
+    BINDINGS = [
+        Binding("escape,enter,q", "back", "Back"),
+    ]
+
+    def __init__(self, title: str, message: str):
         super().__init__()
-        self.title = "Custos e Limites (estimativa)"
-        self.items = [
-            {"label": "Pexels: grátis (limites por hora)", "type": "action", "handler": self.app.action_back},
-            {"label": "Figma: grátis (varia por uso)", "type": "action", "handler": self.app.action_back},
-            {"label": "Gemini: gratuito limitado (configure GEMINI_API_KEY)", "type": "action", "handler": self.app.action_back},
-            {"label": "Voltar", "type": "action", "handler": self.app.action_back},
-        ]
+        self.title = title
+        self.message = message
 
+    def compose(self) -> ComposeResult:
+        yield Static(f"📋 {self.title}", classes="header")
+        yield Static(self.message, id="result_content")
+        yield Static("Enter/Escape: Voltar", classes="help")
 
-def interactive_menu():
-    return MenuApp().run()
+    def action_back(self):
+        self.app.pop_screen()
+
+class CLIToolsApp(App):
+    CSS = """
+    .header {
+        background: #bd93f9;
+        color: #282a36;
+        text-align: center;
+        padding: 1;
+        margin-bottom: 1;
+    }
+    
+    .help {
+        background: #44475a;
+        color: #f8f8f2;
+        text-align: center;
+        padding: 1;
+        margin-top: 1;
+    }
+    
+    .validation {
+        text-align: center;
+        padding: 0 1;
+        margin: 0;
+    }
+    
+    .validation.valid {
+        background: #50fa7b;
+        color: #282a36;
+    }
+    
+    .validation.invalid {
+        background: #ff5555;
+        color: #f8f8f2;
+    }
+    
+    .help_hidden {
+        display: none;
+    }
+    
+    .help_visible {
+        background: #6272a4;
+        color: #f8f8f2;
+        padding: 1;
+        margin: 1 0;
+    }
+    
+    ListView {
+        background: #282a36;
+        color: #f8f8f2;
+    }
+    
+    ListItem {
+        background: #282a36;
+        color: #f8f8f2;
+    }
+    
+    ListItem:hover {
+        background: #44475a;
+    }
+    
+    Input {
+        background: #44475a;
+        color: #f8f8f2;
+    }
+    
+    Static {
+        background: #282a36;
+        color: #f8f8f2;
+    }
+    
+    #result_content {
+        background: #44475a;
+        color: #f8f8f2;
+        padding: 1;
+        margin: 1;
+    }
+    """
+
+    def on_mount(self):
+        self.push_screen(MainMenuScreen())
+
+def run():
+    """Executar interface interativa do terminal."""
+    app = CLIToolsApp()
+    app.run()

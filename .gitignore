@@ -1,59 +1,44 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
-.Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
 
-# Ignorar lib/ apenas na raiz (não cli_tools/lib/)
-/lib/
+# Virtual environments
+.venv/
+venv/
 
-# Logs
+# Project lixo
+PLANO_DE_ACAO.md
+QA_REPORT.md
+src/run_tests.py
+*.png
+*.jpg
 *.log
-logs/
 
-# Dados de uso (gerados automaticamente)
-dados_uso/
-cli_tools/dados_uso/
-
-# Downloads e referências (gerados pelo uso)
-referencias/
-downloads/
-imagens/
-designs/
-
-# Configuração local
-.env
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Amazon Q (documentação interna)
+# Amazon Q
 .amazonq/
 
-# Materials directory (downloaded content)
-materials/repos/
-materials/imagens/
-materials/figma/
+# Data/cache gerados em runtime
+data/
+src/data/
+
+# Materials (downloads)
+materials/
+
+# Tests
+tests/
+.pytest_cache/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+
+# Scratch e temporários
+scratch/
+*.tmp
+*.tmp.*
+.q-cache/

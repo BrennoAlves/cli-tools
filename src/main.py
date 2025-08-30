@@ -15,16 +15,25 @@ from src.commands.status import status
 def cli(ctx):
     """CLI Tools v2.0 - Kit de ferramentas para desenvolvedores."""
     if ctx.invoked_subcommand is None:
-        # Import tardio para evitar exigir Textual fora do modo UI
-        from src.lib.ui import interactive_menu
-        interactive_menu()
+        # Interface navegável por setas como Gemini CLI
+        try:
+            from src.lib.ui import run
+            run()
+        except ImportError as e:
+            click.echo(f"❌ Erro ao carregar interface: {e}")
+            click.echo("💡 Instale as dependências: pip install -r requirements.txt")
+            ctx.get_help()
 
 
 @cli.command()
 def ui():
-    """Interface interativa."""
-    from src.lib.ui import interactive_menu
-    interactive_menu()
+    """Interface interativa navegável por setas."""
+    try:
+        from src.lib.ui import run
+        run()
+    except ImportError as e:
+        click.echo(f"❌ Erro ao carregar interface: {e}")
+        click.echo("💡 Instale as dependências: pip install -r requirements.txt")
 
 
 # Registrar comandos isolados
