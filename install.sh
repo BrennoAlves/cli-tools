@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# CLI Tools v2.0 - Instalação Automática
+# CLI Tools v2.0 - Instalação Nativa Global
 set -e
 
-echo "🚀 CLI Tools v2.0 - Instalação"
-echo "================================"
+echo "🚀 CLI Tools v2.0 - Instalação Nativa"
+echo "====================================="
 
 # Verificar Python
 if ! command -v python3 &> /dev/null; then
@@ -12,59 +12,43 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Criar .venv se não existir
-if [ ! -d ".venv" ]; then
-    echo "📦 Criando ambiente virtual..."
-    python3 -m venv .venv
+# Instalar pipx se não existir (recomendado para CLIs)
+if ! command -v pipx &> /dev/null; then
+    echo "📦 Instalando pipx (gerenciador de CLIs Python)..."
+    if command -v apt &> /dev/null; then
+        sudo apt update && sudo apt install -y pipx
+    elif command -v brew &> /dev/null; then
+        brew install pipx
+    else
+        python3 -m pip install --user pipx
+    fi
+    pipx ensurepath
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# Ativar .venv
-echo "🔧 Ativando ambiente virtual..."
-if [ -f ".venv/bin/activate" ]; then
-    source .venv/bin/activate
-else
-    echo "❌ Erro: ambiente virtual não foi criado corretamente"
-    exit 1
-fi
+echo "📦 Instalando CLI Tools com pipx..."
+pipx install .
 
-# Instalar dependências
-echo "📥 Instalando dependências..."
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# Criar diretórios necessários
-echo "📁 Criando estrutura de diretórios..."
-mkdir -p materials/{imagens,figma,repos}
-mkdir -p data/cache
-
-# Garantir criação do arquivo de configuração com defaults
-echo "📝 Preparando configuração inicial..."
-python - <<'PY'
-from src.lib.config import _load_config, _save_config, CONFIG_FILE, DATA_DIR
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-cfg = _load_config()
-_save_config(cfg)
-print(f"✅ Arquivo de configuração pronto em: {CONFIG_FILE}")
-PY
+# Criar diretórios de dados no home do usuário
+echo "📁 Criando estrutura de dados..."
+mkdir -p ~/.local/share/cli-tools/{materials/{imagens,figma,repos},data/cache}
 
 # Verificar instalação
 echo "✅ Verificando instalação..."
-if .venv/bin/python -m src.main --version &> /dev/null; then
-    echo "✅ CLI Tools instalado com sucesso!"
+if command -v cli-tools &> /dev/null; then
+    echo "✅ Instalação concluída com sucesso!"
     echo ""
-    echo "🎯 Para usar:"
-    echo "   source .venv/bin/activate"
-    echo "   python -m src.main ui"
+    echo "🎯 Para usar em qualquer lugar:"
+    echo "   cli-tools ui"
+    echo "   cli-tools search 'office desk' -c 1"
+    echo "   cli-tools figma AbCdEfGh123 -f png"
+    echo "   cli-tools repo user/repo -q 'components'"
+    echo "   cli-tools status"
     echo ""
-    echo "   ou diretamente:"
-    echo "   .venv/bin/python -m src.main ui"
-    echo ""
-    echo "📋 Comandos disponíveis:"
-    echo "   python -m src.main search 'office desk' -c 1"
-    echo "   python -m src.main figma AbCdEfGh123 -f png"
-    echo "   python -m src.main repo user/repo -q 'components'"
-    echo "   python -m src.main status"
+    echo "📋 Teste agora:"
+    cli-tools --help
 else
-    echo "❌ Erro na instalação. Verifique os logs acima."
+    echo "❌ Comando cli-tools não encontrado."
+    echo "   Reinicie o terminal ou execute: source ~/.bashrc"
     exit 1
 fi
