@@ -40,4 +40,7 @@ comportamento_agent:
   hard_stop:
     antes_de_executar: true
     antes_de_abrir_pr: true
+  main_branch:
+    via_rapida_nunca_merge: true
+    apenas_via_completa_ou_solicitacao_explicita: true
 
