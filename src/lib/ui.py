@@ -132,21 +132,25 @@ class SearchScreen(Screen):
         if not self.query:
             return
         
-        import subprocess
-        import sys
-        
-        cmd = [sys.executable, "-m", "src.commands.search", self.query]
-        cmd.extend(["--count", str(self.count)])
-        cmd.extend(["--orientation", self.orientation])
-        if self.output:
-            cmd.extend(["--output", self.output])
-        
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd="/home/desk/cli-tools")
-            # Mostrar resultado em uma nova tela
-            self.show_result(result.stdout or result.stderr)
+            from src.lib.apis import pexels_download_files
+            files = pexels_download_files(
+                self.query, 
+                count=self.count, 
+                orientation=self.orientation, 
+                output=self.output if self.output else None
+            )
+            
+            if files:
+                result = f"✅ {len(files)} imagem(ns) baixada(s):\n\n"
+                for f in files:
+                    result += f"📁 {f['nome']} ({f['tamanho']})\n"
+            else:
+                result = "⚠️ Nenhuma imagem encontrada."
+                
+            self.show_result(result)
         except Exception as e:
-            self.show_result(f"Erro: {e}")
+            self.show_result(f"❌ Erro: {e}")
 
     def show_result(self, message):
         self.app.push_screen(ResultScreen("Resultado da Busca", message))
@@ -331,21 +335,28 @@ class FigmaScreen(Screen):
         if not self.file_key:
             return
         
-        import subprocess
-        import sys
-        
-        cmd = [sys.executable, "-m", "src.commands.figma", self.file_key]
-        cmd.extend(["--mode", self.mode])
-        cmd.extend(["--format", self.format])
-        cmd.extend(["--max", str(self.max_images)])
-        if self.output:
-            cmd.extend(["--output", self.output])
-        
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd="/home/desk/cli-tools")
-            self.show_result(result.stdout or result.stderr)
+            from src.lib.apis import figma_download_files
+            files = figma_download_files(
+                self.file_key,
+                fmt=self.format,
+                scale=1.0,
+                output=self.output if self.output else None,
+                nodes=None,
+                max_images=self.max_images,
+                mode=self.mode
+            )
+            
+            if files:
+                result = f"✅ {len(files)} arquivo(s) extraído(s):\n\n"
+                for f in files:
+                    result += f"📁 {f['nome']} ({f['tamanho']})\n"
+            else:
+                result = "⚠️ Nenhum arquivo gerado."
+                
+            self.show_result(result)
         except Exception as e:
-            self.show_result(f"Erro: {e}")
+            self.show_result(f"❌ Erro: {e}")
 
     def show_result(self, message):
         self.app.push_screen(ResultScreen("Resultado Figma", message))
@@ -428,24 +439,23 @@ class RepoScreen(Screen):
         if not self.repo:
             return
         
-        import subprocess
-        import sys
-        
-        cmd = [sys.executable, "-m", "src.commands.repo", self.repo]
-        if self.query:
-            cmd.extend(["--query", self.query])
-        if self.no_ai:
-            cmd.append("--no-ai")
-        if self.all_files:
-            cmd.append("--all")
-        if self.output:
-            cmd.extend(["--output", self.output])
-        
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd="/home/desk/cli-tools")
-            self.show_result(result.stdout or result.stderr)
+            from src.lib.apis import repo_download_auto
+            path = repo_download_auto(
+                self.repo,
+                query=self.query if self.query else None,
+                output=self.output if self.output else None,
+                no_ai=self.no_ai,
+                all_clone=self.all_files,
+                explain=None,
+                dry_run=False,
+                interactive=False
+            )
+            
+            result = f"✅ Repositório baixado:\n\n📦 {path}"
+            self.show_result(result)
         except Exception as e:
-            self.show_result(f"Erro: {e}")
+            self.show_result(f"❌ Erro: {e}")
 
     def show_result(self, message):
         self.app.push_screen(ResultScreen("Resultado Repo", message))
