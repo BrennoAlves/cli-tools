@@ -13,15 +13,18 @@ venv/
 # Project lixo
 PLANO_DE_ACAO.md
 QA_REPORT.md
-run_tests.py
-image.png
+src/run_tests.py
+*.png
+*.jpg
 *.log
 
 # Amazon Q
 .amazonq/
 
-# Data/cache
-data/
+# Data/cache (agora em src/)
+src/data/
+
+# Materials (downloads)
 materials/
 
 # Tests
