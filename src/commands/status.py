@@ -1,5 +1,5 @@
 import click
-from src.lib.utils import show_dashboard
+from ..lib.utils import show_dashboard
 
 
 @click.command(name='status')

@@ -1,6 +1,6 @@
 import click
 from typing import Optional
-from src.lib.apis import repo_download_auto
+from ..lib.apis import repo_download_auto
 
 
 @click.command(name='repo')

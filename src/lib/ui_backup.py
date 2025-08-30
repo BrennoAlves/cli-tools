@@ -143,7 +143,7 @@ class SearchScreen(Screen):
         result.update("🔄 Buscando...")
         
         try:
-            from src.lib.apis import pexels_download_files
+            from .apis import pexels_download_files
             files = await asyncio.to_thread(
                 pexels_download_files, 
                 self.query, 
@@ -239,7 +239,7 @@ class StatusScreen(Screen):
 
     def refresh_status(self) -> None:
         try:
-            from src.lib.utils import get_system_status
+            from .utils import get_system_status
             status = get_system_status()
             
             content = "--- APIs ---\n"
@@ -362,7 +362,7 @@ class FigmaScreen(Screen):
         result.update("🔄 Extraindo...")
         
         try:
-            from src.lib.apis import figma_download_files
+            from .apis import figma_download_files
             files = await asyncio.to_thread(
                 figma_download_files,
                 self.file_key,
@@ -470,7 +470,7 @@ class RepoScreen(Screen):
         result.update("🔄 Baixando...")
         
         try:
-            from src.lib.apis import repo_download_auto
+            from .apis import repo_download_auto
             files = await asyncio.to_thread(
                 repo_download_auto,
                 self.repo,
@@ -506,7 +506,7 @@ class ConfigScreen(Screen):
 
     def load_config(self):
         try:
-            from src.lib.config import get_api_key, get_workspace
+            from .config import get_api_key, get_workspace
             self.pexels_key = "●●●●●" if get_api_key('pexels') else ""
             self.figma_key = "●●●●●" if get_api_key('figma') else ""
             self.gemini_key = "●●●●●" if get_api_key('gemini') else ""
@@ -582,7 +582,7 @@ class ConfigScreen(Screen):
 
     def save_config(self):
         try:
-            from src.lib.config import set_api_key, set_workspace
+            from .config import set_api_key, set_workspace
             
             if hasattr(self, '_temp_pexels'):
                 set_api_key('pexels', self._temp_pexels)

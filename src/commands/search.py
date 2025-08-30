@@ -1,5 +1,5 @@
 import click
-from src.lib.apis import pexels_download_files
+from ..lib.apis import pexels_download_files
 
 
 @click.command(name='search')
