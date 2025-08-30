@@ -6,12 +6,15 @@ import os
 import json
 from pathlib import Path
 
-DATA_DIR = Path.cwd() / 'data'
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path.home() / '.local/share/cli-tools/data'
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE = DATA_DIR / 'config.json'
 
+MATERIALS_DIR = Path.home() / '.local/share/cli-tools/materials'
+MATERIALS_DIR.mkdir(parents=True, exist_ok=True)
+
 DEFAULTS = {
-    'workspace': str(Path.cwd() / 'materials'),
+    'workspace': str(MATERIALS_DIR),
     'theme': 'transparent',
     'ui_top_pad': 6,
     'apis': {
