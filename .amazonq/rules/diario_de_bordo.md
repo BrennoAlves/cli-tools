@@ -69,3 +69,10 @@ Entrada atual
 - Resultado: Regras mais claras, main protegida, Via Rápida sempre fica na dev.
 - Próximo: Seguir regras corretamente.
 
+### 2025-08-30 - Tradução do rules.yaml para inglês ✅
+- Problema: Outros agents preferem configuração em inglês para melhor compatibilidade.
+- Solução: Traduzido rules.yaml mantendo termos técnicos (branch, PR, etc.) e comunicação em português.
+- Arquivos: .amazonq/rules/rules.yaml
+- Resultado: Configuração internacional mantendo workflow em português.
+- Próximo: Testar compatibilidade com outros agents.
+
