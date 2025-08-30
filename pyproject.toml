@@ -5,23 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cli-tools"
 version = "2.0.0"
-description = "Kit de ferramentas para desenvolvedores com interface interativa"
-readme = "README.md"
-license = {text = "MIT"}
+description = "Kit de ferramentas para desenvolvedores"
 authors = [
-    {name = "CLI Tools Team", email = "dev@cli-tools.com"}
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Environment :: Console",
-    "Topic :: Software Development :: Tools",
-    "Topic :: Utilities"
+    {name = "CLI Tools Team"}
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -40,11 +26,6 @@ dev = [
 
 [project.scripts]
 cli-tools = "src.main:cli"
-
-[project.urls]
-Homepage = "https://github.com/user/cli-tools"
-Repository = "https://github.com/user/cli-tools"
-Issues = "https://github.com/user/cli-tools/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

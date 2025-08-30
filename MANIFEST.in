@@ -1,15 +1,18 @@
-# Incluir arquivos essenciais
-include README.md
+# Incluir apenas essenciais
 include requirements.txt
-include pyproject.toml
-
-# Incluir código fonte
 recursive-include src *.py
 
-# Excluir arquivos de desenvolvimento
+# Excluir tudo desnecessário  
+exclude LICENSE
+exclude README.md
+exclude MANIFEST.in
+exclude build.py
 exclude run_tests.py
 exclude PLANO_DE_ACAO.md
 exclude QA_REPORT.md
+exclude *.png
+exclude *.jpg
+exclude *.webp
 recursive-exclude tests *
 recursive-exclude .git *
 recursive-exclude .github *
@@ -18,6 +21,3 @@ recursive-exclude data *
 recursive-exclude materials *
 recursive-exclude .venv *
 recursive-exclude __pycache__ *
-exclude *.pyc
-exclude *.pyo
-exclude *.log
