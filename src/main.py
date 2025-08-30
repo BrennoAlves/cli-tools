@@ -17,8 +17,8 @@ def cli(ctx):
     if ctx.invoked_subcommand is None:
         # Interface navegável por setas como Gemini CLI
         try:
-            from src.lib.ui_gemini import interactive_menu
-            interactive_menu()
+            from src.lib.ui import run
+            run()
         except ImportError as e:
             click.echo(f"❌ Erro ao carregar interface: {e}")
             click.echo("💡 Instale as dependências: pip install -r requirements.txt")
@@ -29,8 +29,8 @@ def cli(ctx):
 def ui():
     """Interface interativa navegável por setas."""
     try:
-        from src.lib.ui_gemini import interactive_menu
-        interactive_menu()
+        from src.lib.ui import run
+        run()
     except ImportError as e:
         click.echo(f"❌ Erro ao carregar interface: {e}")
         click.echo("💡 Instale as dependências: pip install -r requirements.txt")
