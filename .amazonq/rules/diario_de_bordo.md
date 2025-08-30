@@ -41,3 +41,10 @@ Entrada atual
 - Resultado: Instalador agora falha graciosamente se venv não for criado corretamente.
 - Próximo: Testar instalação em ambiente limpo.
 
+### 2025-08-30 - Refatoração para instalação nativa global ✅
+- Problema: Instalador criava ambiente local com venv, mas deveria instalar CLI globalmente no sistema.
+- Solução: Refatorado install.sh para usar pipx/pip install global, dados em ~/.local/share/cli-tools.
+- Arquivos: install.sh, src/lib/config.py
+- Resultado: Comando cli-tools disponível globalmente, zero fricção, app nativo.
+- Próximo: Testar instalação nativa completa.
+
