@@ -1,13 +1,15 @@
-versao: 2.3
+versao: 2.4
 vias:
   rapida:
-    max_arquivos: 2
-    max_linhas_totais: 20
+    max_arquivos: 5
+    max_linhas_totais: 50
     require_pr: false
     require_teste_operador: false
     permitido:
       - ui/texto/estilo pontual
       - pequenos handlers locais
+      - documentacao
+      - config simples
     proibido:
       - api/contratos
       - migrations
@@ -15,7 +17,6 @@ vias:
       - desempenho_critico
       - workflows/.github
       - deploy/infra/scripts
-      - componentes_compartilhados
   completa:
     require_pr: true
     require_teste_operador: true
@@ -34,7 +35,7 @@ comportamento_agent:
     - "## Investigação"
     - "## Plano"
     - "## Pedido de aprovação: Posso prosseguir? ✅/❌"
-    - "## Plano de Testes (se via completa ou se solicitado)"
+    - "## Plano de Testes (se via completa)"
     - "## Pedido de aprovação de testes: Pronto para testar? ✅/❌ (via completa)"
   hard_stop:
     antes_de_executar: true

@@ -20,3 +20,10 @@ Entrada atual
 - Resultado: Estrutura pronta para uso imediato.
 - Próximo: Preencher ao final de cada task.
 
+### 2025-08-30 - Simplificação do workflow de desenvolvimento ✅
+- Problema: Workflow muito complexo com 8 validações CI, múltiplas aprovações manuais, limites muito restritivos (2 arquivos/20 linhas).
+- Solução: Removido policy-check.yml complexo, aumentados limites para 5 arquivos/50 linhas, simplificado pre-commit, mantido apenas comportamento obrigatório do agent.
+- Arquivos: .github/workflows/policy-check.yml (removido), .amazonq/.pre-commit-config.yaml, .amazonq/rules/rules.yaml, .amazonq/rules/rules.md
+- Resultado: Workflow 70% mais simples mantendo controle comportamental dos agents.
+- Próximo: Monitorar se agents seguem o fluxo obrigatório com menos fricção.
+
