@@ -34,3 +34,10 @@ Entrada atual
 - Resultado: Pasta materials/ não faz mais parte do repo base, apenas criada na instalação.
 - Próximo: Testar instalação limpa para confirmar criação automática.
 
+### 2025-08-30 - Correção do instalador venv ✅
+- Problema: Instalador tentava ativar .venv/bin/activate sem verificar se arquivo existe, causando erro "No such file or directory".
+- Solução: Adicionada verificação de existência do arquivo activate antes de tentar ativá-lo.
+- Arquivos: install.sh
+- Resultado: Instalador agora falha graciosamente se venv não for criado corretamente.
+- Próximo: Testar instalação em ambiente limpo.
+
