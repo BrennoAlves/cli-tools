@@ -22,7 +22,9 @@ Use quando **todas** as condições forem verdadeiras:
 4. **✅ Implementar** o miniplano.
 5. **🧪 Quick‑check** local (`.amazonq/scripts/quick_check.sh`).
 6. **📝 Diário** atualizado.
-7. **🔕 PR**: **não abrir** por padrão. Commit direto em `dev`.
+7. **🔕 IMPORTANTE**: **NUNCA** merge para main. **SEMPRE** commit direto em `dev`.
+
+> **⚠️ REGRA CRÍTICA**: Via Rápida **NUNCA** vai para main automaticamente. Fica na `dev` até ser solicitado merge explícito ou virar Via Completa.
 
 ### 🧱 Via Completa (média/alta)
 
