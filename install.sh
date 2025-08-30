@@ -20,7 +20,12 @@ fi
 
 # Ativar .venv
 echo "🔧 Ativando ambiente virtual..."
-source .venv/bin/activate
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+else
+    echo "❌ Erro: ambiente virtual não foi criado corretamente"
+    exit 1
+fi
 
 # Instalar dependências
 echo "📥 Instalando dependências..."
