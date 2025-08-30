@@ -1,0 +1,42 @@
+versao: 2.3
+vias:
+  rapida:
+    max_arquivos: 2
+    max_linhas_totais: 20
+    require_pr: false
+    require_teste_operador: false
+    permitido:
+      - ui/texto/estilo pontual
+      - pequenos handlers locais
+    proibido:
+      - api/contratos
+      - migrations
+      - seguranca/segredos
+      - desempenho_critico
+      - workflows/.github
+      - deploy/infra/scripts
+      - componentes_compartilhados
+  completa:
+    require_pr: true
+    require_teste_operador: true
+    label_pr: "lane: full"
+
+aprovacao:
+  tokens:
+    - "✅"
+    - "aprovado"
+  teste_tokens:
+    - "✅ testado ok"
+    - "aprovado para PR"
+
+comportamento_agent:
+  respostas:
+    - "## Investigação"
+    - "## Plano"
+    - "## Pedido de aprovação: Posso prosseguir? ✅/❌"
+    - "## Plano de Testes (se via completa ou se solicitado)"
+    - "## Pedido de aprovação de testes: Pronto para testar? ✅/❌ (via completa)"
+  hard_stop:
+    antes_de_executar: true
+    antes_de_abrir_pr: true
+

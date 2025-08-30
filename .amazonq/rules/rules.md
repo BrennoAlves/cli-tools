@@ -21,7 +21,7 @@ Use quando **todas** as condições forem verdadeiras:
 2. **🔎 Mini‑investigação** (1–3 linhas) + **Miniplano** (1–3 linhas).
 3. **❓ Sinal verde rápido**: *“Mudança pequena (via rápida). Posso prosseguir? ✅/❌”*.
 4. **✅ Implementar** o miniplano.
-5. **🧪 Quick‑check** local (`./scripts/quick_check.sh`).
+5. **🧪 Quick‑check** local (`.amazonq/scripts/quick_check.sh`).
 6. **📝 Diário** atualizado.
 7. **🔕 PR**: **não abrir** por padrão. Abra **somente se solicitado** pelo operador/gerente **ou** se a mudança deixar de ser pequena.
 8. (Opcional, se solicitado) **Teste do operador**: fornecer passos curtos; aguardar **“✅ testado ok”**.
@@ -147,7 +147,7 @@ convencoes:
 
 ## 4) Automação de **enforcement**
 
-### 4.1 Pre‑commit — `.pre-commit-config.yaml`
+### 4.1 Pre‑commit — `.amazonq/.pre-commit-config.yaml`
 
 ```yaml
 repos:
@@ -188,10 +188,10 @@ repos:
 
 ```bash
 pipx install pre-commit || pip install pre-commit
-pre-commit install
+pre-commit install --config .amazonq/.pre-commit-config.yaml --hook-type pre-commit --hook-type commit-msg
 ```
 
-### 4.2 Commit‑msg (exigir indicação da via) — `scripts/check_commit_lane.sh`
+### 4.2 Commit‑msg (exigir indicação da via) — `.amazonq/scripts/check_commit_lane.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -210,7 +210,7 @@ Adicionar ao pre‑commit (estágio `commit-msg`):
     hooks:
       - id: require-commit-lane
         name: exigir lane no commit
-        entry: scripts/check_commit_lane.sh
+        entry: .amazonq/scripts/check_commit_lane.sh
         language: system
         stages: [commit-msg]
 ```
@@ -222,7 +222,7 @@ feat(ui): ajusta label do botão "Salvar"
 lane: rapido
 ```
 
-### 4.3 Template de PR — `.github/PULL_REQUEST_TEMPLATE.md`
+### 4.3 Template de PR — referência local (opcional)
 
 ```markdown
 ## Checklist
@@ -242,13 +242,13 @@ lane: rapido
 (passos + critérios de aceitação)
 ```
 
-### 4.4 CODEOWNERS — `.github/CODEOWNERS`
+### 4.4 CODEOWNERS — referência local (opcional)
 
 ```
 * @seu-usuario-github
 ```
 
-### 4.5 GitHub Action — **policy-check** — `.github/workflows/policy-check.yml`
+### 4.5 GitHub Action — **policy-check** — `.amazonq/rules/policy-check.yml` (referência local)
 
 ```yaml
 name: policy-check
@@ -321,7 +321,7 @@ jobs:
 
 ---
 
-## 5) Quick‑check local — `scripts/quick_check.sh`
+## 5) Quick‑check local — `.amazonq/scripts/quick_check.sh`
 
 ```bash
 #!/usr/bin/env bash
