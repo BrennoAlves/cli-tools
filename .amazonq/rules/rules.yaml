@@ -1,46 +1,57 @@
-versao: 2.4
-vias:
-  rapida:
-    max_arquivos: 5
-    max_linhas_totais: 50
+version: 2.4
+lanes:
+  fast:
+    max_files: 5
+    max_total_lines: 50
     require_pr: false
-    require_teste_operador: false
-    permitido:
-      - ui/texto/estilo pontual
-      - pequenos handlers locais
-      - documentacao
-      - config simples
-    proibido:
-      - api/contratos
+    require_operator_test: false
+    allowed:
+      - ui/text/style changes
+      - small local handlers
+      - documentation
+      - simple config
+    forbidden:
+      - api/contracts
       - migrations
-      - seguranca/segredos
-      - desempenho_critico
+      - security/secrets
+      - critical_performance
       - workflows/.github
       - deploy/infra/scripts
-  completa:
+  full:
     require_pr: true
-    require_teste_operador: true
-    label_pr: "lane: full"
+    require_operator_test: true
+    pr_label: "lane: full"
 
-aprovacao:
+approval:
   tokens:
     - "✅"
     - "aprovado"
-  teste_tokens:
+  test_tokens:
     - "✅ testado ok"
     - "aprovado para PR"
 
-comportamento_agent:
-  respostas:
+agent_behavior:
+  required_responses:
     - "## Investigação"
     - "## Plano"
     - "## Pedido de aprovação: Posso prosseguir? ✅/❌"
     - "## Plano de Testes (se via completa)"
     - "## Pedido de aprovação de testes: Pronto para testar? ✅/❌ (via completa)"
-  hard_stop:
-    antes_de_executar: true
-    antes_de_abrir_pr: true
+  hard_stops:
+    before_execution: true
+    before_opening_pr: true
   main_branch:
-    via_rapida_nunca_merge: true
-    apenas_via_completa_ou_solicitacao_explicita: true
+    fast_lane_never_merge: true
+    only_full_lane_or_explicit_request: true
 
+conventions:
+  diary_file: ".amazonq/rules/diario_de_bordo.md"
+  scratch_folder: "scratch/"
+  code_patterns:
+    - "**/*.py"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.js"
+    - "**/*.sh"
+    - "**/*.go"
+    - "**/*.rs"
