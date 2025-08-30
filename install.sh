@@ -32,6 +32,16 @@ echo "📁 Criando estrutura de diretórios..."
 mkdir -p materials/{imagens,figma,repos}
 mkdir -p data/cache
 
+# Garantir criação do arquivo de configuração com defaults
+echo "📝 Preparando configuração inicial..."
+python - <<'PY'
+from src.lib.config import _load_config, _save_config, CONFIG_FILE, DATA_DIR
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+cfg = _load_config()
+_save_config(cfg)
+print(f"✅ Arquivo de configuração pronto em: {CONFIG_FILE}")
+PY
+
 # Verificar instalação
 echo "✅ Verificando instalação..."
 if .venv/bin/python -m src.main --version &> /dev/null; then
