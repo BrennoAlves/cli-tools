@@ -9,14 +9,6 @@ dist/
 # Virtual environments
 .venv/
 venv/
-<<<<<<< Updated upstream
-env/
-ENV/
-
-# Ignorar lib/ apenas na raiz (não cli_tools/lib/)
-/lib/
-=======
->>>>>>> Stashed changes
 
 # Project lixo
 PLANO_DE_ACAO.md
@@ -28,17 +20,6 @@ image.png
 # Amazon Q
 .amazonq/
 
-<<<<<<< Updated upstream
-# Materials directory (downloaded content)
-materials/repos/
-materials/imagens/
-materials/figma/
-
-# Tests (apenas na branch dev)
-.pytest_cache/
-.coverage
-htmlcov/
-=======
 # Data/cache
 data/
 materials/
@@ -51,4 +32,3 @@ tests/
 .vscode/
 .idea/
 .DS_Store
->>>>>>> Stashed changes
