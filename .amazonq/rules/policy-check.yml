@@ -1,0 +1,61 @@
+name: policy-check (referência local)
+on:
+  pull_request:
+    branches: [ main ]
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Diff da base
+        id: diff
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          echo "files=$(git diff --name-only FETCH_HEAD...HEAD | tr '\n' ' ' )" >> $GITHUB_OUTPUT
+      - name: Proibir HTTPS do GitHub
+        run: |
+          if git grep -n "https://github.com/" -- . >/dev/null; then
+            echo "Use SSH (git@github.com:...)"; exit 1; fi
+      - name: Proibir scratch/ versionado
+        run: |
+          CHANGED="${{ steps.diff.outputs.files }}"
+          echo "$CHANGED" | tr ' ' '\n' | grep '^scratch/' && { echo 'Não versione scratch/'; exit 1; } || true
+      - name: Bloquear .amazonq na main
+        if: github.base_ref == 'main'
+        run: |
+          echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n' | grep '^.amazonq/' && { echo '.amazonq/ deve ficar na dev'; exit 1; } || true
+      - name: Exigir atualização do Diário quando há código
+        run: |
+          CHANGED_FILES=$(echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n')
+          CODE_CHANGED=$(echo "$CHANGED_FILES" | grep -E '\\.(py|ts|tsx|js|sh|go|rs)$' || true)
+          if [ -n "$CODE_CHANGED" ]; then
+            echo "$CHANGED_FILES" | grep -q "^\\.amazonq/rules/diario_de_bordo.md$" || { echo 'Atualize o Diário'; exit 1; }
+          fi
+      - name: Exigir token de aprovação de implementação (comentários)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+          gh api repos/$REPO/issues/$PR/comments --paginate | jq -r '.[].body' | grep -Ei '(^| )✅($| )|aprovado' >/dev/null || {
+            echo 'É necessário comentário de aprovação (✅/aprovado).'; exit 1; }
+      - name: Exigir label de via completa
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+          gh pr view $PR --repo $REPO --json labels -q '.labels[].name' | grep -Fx 'lane: full' >/dev/null || {
+            echo 'Adicione o label do PR: "lane: full" (PRs são só para via completa ou quando solicitados).'; exit 1; }
+      - name: Exigir aprovação de testes do operador (PR body)
+        run: |
+          BODY='${{ github.event.pull_request.body }}'
+          echo "$BODY" | grep -Ei '(✅ testado ok|aprovado para PR)' >/dev/null || {
+            echo 'Inclua no corpo do PR a aprovação de testes do operador (✅ testado ok / aprovado para PR).'; exit 1; }
+

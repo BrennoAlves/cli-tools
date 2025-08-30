@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: forbid-https-github
+        name: proibir https do github (use SSH)
+        entry: bash -c 'if git grep -n "https://github.com/" -- . >/dev/null; then echo "Use SSH (git@github.com:...)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+      - id: forbid-scratch-commits
+        name: proibir versionar scratch/
+        entry: bash -c 'if git ls-files -- scratch/ | grep -q .; then echo "Não versione scratch/"; exit 1; fi'
+        language: system
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: require-commit-lane
+        name: exigir lane no commit
+        entry: .amazonq/scripts/check_commit_lane.sh
+        language: system
+        stages: [commit-msg]
+

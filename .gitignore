@@ -36,3 +36,9 @@ tests/
 .vscode/
 .idea/
 .DS_Store
+
+# Scratch e temporários
+scratch/
+*.tmp
+*.tmp.*
+.q-cache/
