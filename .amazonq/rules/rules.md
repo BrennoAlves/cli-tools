@@ -248,7 +248,7 @@ lane: rapido
 * @seu-usuario-github
 ```
 
-### 4.5 GitHub Action — **policy-check** — `.amazonq/rules/policy-check.yml` (referência local)
+### 4.5 GitHub Action — **policy-check** — `.github/workflows/policy-check.yml`
 
 ```yaml
 name: policy-check

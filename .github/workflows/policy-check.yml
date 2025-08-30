@@ -1,4 +1,4 @@
-name: policy-check (referência local)
+name: policy-check
 on:
   pull_request:
     branches: [ main ]
