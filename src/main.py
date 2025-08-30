@@ -29,7 +29,7 @@ def cli(ctx):
 def ui():
     """Interface interativa navegável por setas."""
     try:
-        from .lib.ui_simple import run
+        from src.lib.ui import run
         run()
     except ImportError as e:
         click.echo(f"❌ Erro ao carregar interface: {e}")
