@@ -2,6 +2,7 @@
 Interface interativa do terminal.
 """
 
+import asyncio
 from textual.app import App, ComposeResult
 from textual.widgets import Static, ListView, ListItem, Label, Input, ProgressBar
 from textual.containers import Vertical, Container
@@ -329,7 +330,7 @@ class StatusScreen(Screen):
             self.query_one("#status_content").update(f"Erro ao carregar status: {e}")
 
     def action_back(self):
-        self.refresh_status()
+        self.app.pop_screen()
 
 class FigmaScreen(Screen):
     BINDINGS = [
