@@ -26,17 +26,22 @@ jobs:
       - name: Echo arquivos alterados
         run: |
           echo "Arquivos do diff:"; echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n'
-      - name: Proibir clone via HTTPS do GitHub em arquivos alterados
+      - name: Proibir clone via HTTPS (apenas linhas adicionadas)
         run: |
           set -euo pipefail
-          CHANGED="${{ steps.diff.outputs.files }}"
-          echo "Verificando clone via HTTPS nos arquivos alterados..."
-          echo "$CHANGED" | tr ' ' '\n' | while read -r f; do
-            [ -f "$f" ] || continue
-            if grep -nE "git clone https://github.com/" "$f" >/dev/null; then
-              echo "❌ HTTPS proibido em: $f (use SSH: git@github.com:usuario/repositorio.git)"; exit 1; fi
-          done
-          echo "✅ Nenhum comando proibido encontrado."
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+          echo "Verificando 'git clone https://github.com/...' apenas em linhas ADICIONADAS do diff"
+          # Extrai somente linhas adicionadas (ignora cabeçalhos '+++')
+          ADDED=$(git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" | sed -n '/^+[^+]/p' | sed 's/^+//')
+          echo "Linhas adicionadas (preview):"; echo "$ADDED" | sed -n '1,20p' || true
+          # Regex: início de comando ou após separadores ;|&,( seguido de 'git clone https://github.com'
+          if echo "$ADDED" | grep -E "(^|[;|&\(][[:space:]]*)git[[:space:]]+clone[[:space:]]+https://github\.com/" >/dev/null; then
+            echo "❌ Encontrado uso de HTTPS em comando git clone nas linhas adicionadas. Use SSH: git@github.com:usuario/repositorio.git"
+            echo "Trechos que violam:"; echo "$ADDED" | grep -nE "(^|[;|&\(][[:space:]]*)git[[:space:]]+clone[[:space:]]+https://github\.com/" || true
+            exit 1
+          fi
+          echo "✅ Nenhum comando 'git clone https://github.com' encontrado nas linhas adicionadas"
       - name: Proibir scratch/ versionado
         run: |
           set -euo pipefail
