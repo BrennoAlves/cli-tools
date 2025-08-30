@@ -48,3 +48,10 @@ Entrada atual
 - Resultado: Comando cli-tools disponível globalmente, zero fricção, app nativo.
 - Próximo: Testar instalação nativa completa.
 
+### 2025-08-30 - Script de update adicionado ✅
+- Problema: Não existia mecanismo de atualização para a instalação nativa.
+- Solução: Criado update.sh que usa pipx upgrade para atualizar cli-tools.
+- Arquivos: update.sh
+- Resultado: Update simples com ./update.sh, mantém dados do usuário.
+- Próximo: Testar fluxo completo install → use → update.
+
