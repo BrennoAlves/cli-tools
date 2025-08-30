@@ -27,3 +27,10 @@ Entrada atual
 - Resultado: Workflow 70% mais simples mantendo controle comportamental dos agents.
 - Próximo: Monitorar se agents seguem o fluxo obrigatório com menos fricção.
 
+### 2025-08-30 - Pasta materials removida do repo base ✅
+- Problema: Pasta materials/ estava sendo versionada no repo quando deveria ser criada apenas na instalação.
+- Solução: Confirmado que materials/ já está no .gitignore e install.sh já cria a estrutura dinamicamente.
+- Arquivos: Nenhum (materials/ já estava ignorada)
+- Resultado: Pasta materials/ não faz mais parte do repo base, apenas criada na instalação.
+- Próximo: Testar instalação limpa para confirmar criação automática.
+
