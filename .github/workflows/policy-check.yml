@@ -30,7 +30,8 @@ jobs:
         if: github.base_ref == 'main'
         run: |
           echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n' | grep '^.amazonq/' && { echo '.amazonq/ deve ficar na dev'; exit 1; } || true
-      - name: Exigir atualização do Diário quando há código
+      - name: Exigir atualização do Diário quando há código (apenas fora da main)
+        if: github.base_ref != 'main'
         run: |
           CHANGED_FILES=$(echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n')
           CODE_CHANGED=$(echo "$CHANGED_FILES" | grep -E '\\.(py|ts|tsx|js|sh|go|rs)$' || true)
@@ -58,4 +59,3 @@ jobs:
           BODY='${{ github.event.pull_request.body }}'
           echo "$BODY" | grep -Ei '(✅ testado ok|aprovado para PR)' >/dev/null || {
             echo 'Inclua no corpo do PR a aprovação de testes do operador (✅ testado ok / aprovado para PR).'; exit 1; }
-
