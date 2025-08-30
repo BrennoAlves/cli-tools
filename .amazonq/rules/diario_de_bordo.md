@@ -55,3 +55,10 @@ Entrada atual
 - Resultado: Update simples com ./update.sh, mantém dados do usuário.
 - Próximo: Testar fluxo completo install → use → update.
 
+### 2025-08-30 - README.md criado para main ✅
+- Problema: Projeto sem documentação básica na main.
+- Solução: Criado README.md simples com instalação, uso e estrutura essencial.
+- Arquivos: README.md
+- Resultado: Documentação clara e direta, sem firulas.
+- Próximo: Merge para main.
+
