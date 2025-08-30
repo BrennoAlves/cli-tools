@@ -16,24 +16,37 @@ jobs:
       - name: Diff da base
         id: diff
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
-          echo "files=$(git diff --name-only FETCH_HEAD...HEAD | tr '\n' ' ' )" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+          echo "📄 Base: $BASE_SHA"; echo "📄 Head: $HEAD_SHA"
+          FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tr '\n' ' ')
+          echo "Arquivos alterados:"; echo "$FILES" | tr ' ' '\n'
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+      - name: Echo arquivos alterados
+        run: |
+          echo "Arquivos do diff:"; echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n'
       - name: Proibir clone via HTTPS do GitHub em arquivos alterados
         run: |
+          set -euo pipefail
           CHANGED="${{ steps.diff.outputs.files }}"
+          echo "Verificando clone via HTTPS nos arquivos alterados..."
           echo "$CHANGED" | tr ' ' '\n' | while read -r f; do
             [ -f "$f" ] || continue
             if grep -nE "git clone https://github.com/" "$f" >/dev/null; then
-              echo "Use SSH para clone (git@github.com:usuario/repositorio.git) em: $f"; exit 1; fi
+              echo "❌ HTTPS proibido em: $f (use SSH: git@github.com:usuario/repositorio.git)"; exit 1; fi
           done
+          echo "✅ Nenhum comando proibido encontrado."
       - name: Proibir scratch/ versionado
         run: |
+          set -euo pipefail
           CHANGED="${{ steps.diff.outputs.files }}"
-          echo "$CHANGED" | tr ' ' '\n' | grep '^scratch/' && { echo 'Não versione scratch/'; exit 1; } || true
+          echo "$CHANGED" | tr ' ' '\n' | grep '^scratch/' && { echo '❌ Não versione scratch/'; exit 1; } || echo "✅ Sem scratch/ no diff"
       - name: Bloquear .amazonq na main
         if: github.base_ref == 'main'
         run: |
-          echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n' | grep '^.amazonq/' && { echo '.amazonq/ deve ficar na dev'; exit 1; } || true
+          set -euo pipefail
+          echo "${{ steps.diff.outputs.files }}" | tr ' ' '\n' | grep '^\\.amazonq/' && { echo '❌ .amazonq/ deve ficar na dev'; exit 1; } || echo "✅ Sem .amazonq/ no diff"
       - name: Exigir atualização do Diário quando há código (apenas fora da main)
         if: github.base_ref != 'main'
         run: |
