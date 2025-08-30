@@ -63,3 +63,8 @@ Thumbs.db
 materials/repos/
 materials/imagens/
 materials/figma/
+
+# Tests (apenas na branch dev)
+.pytest_cache/
+.coverage
+htmlcov/
