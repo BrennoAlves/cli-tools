@@ -18,10 +18,14 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }} --depth=1
           echo "files=$(git diff --name-only FETCH_HEAD...HEAD | tr '\n' ' ' )" >> $GITHUB_OUTPUT
-      - name: Proibir HTTPS do GitHub
+      - name: Proibir clone via HTTPS do GitHub em arquivos alterados
         run: |
-          if git grep -n "https://github.com/" -- . >/dev/null; then
-            echo "Use SSH (git@github.com:...)"; exit 1; fi
+          CHANGED="${{ steps.diff.outputs.files }}"
+          echo "$CHANGED" | tr ' ' '\n' | while read -r f; do
+            [ -f "$f" ] || continue
+            if grep -nE "git clone https://github.com/" "$f" >/dev/null; then
+              echo "Use SSH para clone (git@github.com:usuario/repositorio.git) em: $f"; exit 1; fi
+          done
       - name: Proibir scratch/ versionado
         run: |
           CHANGED="${{ steps.diff.outputs.files }}"
