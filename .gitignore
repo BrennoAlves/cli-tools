@@ -21,7 +21,8 @@ src/run_tests.py
 # Amazon Q
 .amazonq/
 
-# Data/cache (agora em src/)
+# Data/cache gerados em runtime
+data/
 src/data/
 
 # Materials (downloads)
